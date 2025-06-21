@@ -1,0 +1,16 @@
+# Python
+python/.env/
+python/__pycache__/
+python/**/*.pyc
+python/**/*.pyo
+python/*.egg-info/
+
+# macOS
+.DS_Store
+
+# AWS credentials and config
+.aws/
+
+# Go build artifacts
+go/bin/
+go/pkg/
