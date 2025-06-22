@@ -14,3 +14,10 @@ python/*.egg-info/
 # Go build artifacts
 go/bin/
 go/pkg/
+
+# Docker compose services
+pgdata/
+pgadmin-data/
+
+# environment vars
+.env
