@@ -1,8 +1,9 @@
 CREATE TABLE documents ( 
-    document_id serial PRIMARY KEY, 
-    uploaded_at timestamp, 
-    file_name text, 
-    source text, 
-    text_extracted timestamp, 
-    content_hash text
+    document_id SERIAL PRIMARY KEY, 
+    uploaded_at TIMESTAMP, 
+    file_name TEXT, 
+    source TEXT, 
+    text_extracted TIMESTAMP, 
+    content_hash TEXT
+    s3_key TEXT 
 )
