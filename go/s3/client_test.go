@@ -6,6 +6,9 @@ import (
 )
 
 func TestNewClient(t *testing.T) { 
-	result := NewClient()
+	result, err := NewClient()
+	if err != nil { 
+		t.Log(err)
+	}
 	fmt.Printf("%T\n", result)
 } // TestNewClient
