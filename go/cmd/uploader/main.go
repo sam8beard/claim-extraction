@@ -51,6 +51,7 @@ func main() {
 
 	// link client to uploader
 	uploader := manager.NewUploader(client)
+	// insert row in bucket
 	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("claim-pipeline-docstore")
 		Key: 	aws.String(fileKey)
