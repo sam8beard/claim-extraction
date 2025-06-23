@@ -3,6 +3,12 @@ package main
 import ( 
 	"fmt"
 	"flag"
+	"github.com/sam8beard/claim-extraction/go/s3client"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"context"
+	"path/filepath"
+	"time"
 )
 
 func main() { 
@@ -23,4 +29,23 @@ func main() {
 
 	fmt.Println(filePath, source)
 
+	client, err := s3client.NewClient() 
+	if err != nil { 
+		panic(err)
+	} // if
+	
+	fileName := filepath.Base(filePath)
+	currTime := time.Now() 
+	formattedTime := currTime.Format(time.RFC3339)
+
+
+	fileKey := fmt.Sprint(source, "/", formattedTime, "_", fileName)
+
+	uploader := manager.NewUploader(client)
+	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String("claim-pipeline-docstore")
+		Key: 	aws.String(fileKey)
+		Body: // file reader
+	})
+	
 } // main
