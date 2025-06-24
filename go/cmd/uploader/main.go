@@ -11,6 +11,7 @@ import (
 	"time"
 	"os"
 	"github.com/aws/aws-sdk-go/aws"
+	"log"
 )
 
 func main() { 
@@ -49,9 +50,12 @@ func main() {
 	currTime := time.Now() 
 	formattedTime := currTime.Format(time.RFC3339)
 	fileKey := fmt.Sprint(source, "/", formattedTime, "_", fileName)
-
+	log.Println(fileKey)
+	
 	// link client to uploader
 	uploader := manager.NewUploader(client)
+
+	
 	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("claim-pipeline-docstore"),
 		Key: 	aws.String(fileKey),

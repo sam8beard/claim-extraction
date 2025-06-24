@@ -11,10 +11,7 @@ import (
 )
 
 func NewClient() (*s3.Client, error) { 
-	// execPath, _ := os.Executable()
-	// rootPath := filepath.Dir(filepath.Dir(execPath))
-	// dotenvPath := filepath.Join(rootPath, ".env")
-	// err := godotenv.Load(dotenvPath)
+
 	err := godotenv.Load("../.env")
 	if err != nil { 
 		log.Fatal("Failed to load .env file:", err)
@@ -39,6 +36,6 @@ func NewClient() (*s3.Client, error) {
 	log.Println("AccessKeyID:", creds.AccessKeyID)
 	log.Println("SecretAccessKey:", creds.SecretAccessKey)
 	client := s3.NewFromConfig(cfg)
-	
+	// log.Println(client.Credentials)
 	return client, nil
 } // client 
