@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 	"os"
+	"github.com/aws/aws-sdk-go/aws"
+	"log"
 )
 
 func main() { 
@@ -41,21 +43,22 @@ func main() {
 	if err != nil { 
 		panic(err)
 	} // if 
-	defer fileReader.close() 
+	defer fileReader.Close() 
 
 	// make file key for upload 
 	fileName := filepath.Base(filePath)
 	currTime := time.Now() 
 	formattedTime := currTime.Format(time.RFC3339)
 	fileKey := fmt.Sprint(source, "/", formattedTime, "_", fileName)
-
+	log.Println(fileKey)
+	
 	// link client to uploader
 	uploader := manager.NewUploader(client)
 	// insert row in bucket
 	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String("claim-pipeline-docstore")
-		Key: 	aws.String(fileKey)
-		Body:	fileReader
+		Bucket: aws.String("claim-pipeline-docstore"),
+		Key: 	aws.String(fileKey),
+		Body:	fileReader,
 	})
 
 	if err != nil { 
