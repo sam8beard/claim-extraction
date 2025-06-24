@@ -5,6 +5,9 @@ python/**/*.pyc
 python/**/*.pyo
 python/*.egg-info/
 
+# go executables 
+go/cmd/uploader/upload
+
 # macOS
 .DS_Store
 
