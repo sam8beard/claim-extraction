@@ -36,6 +36,5 @@ func NewClient() (*s3.Client, error) {
 	log.Println("AccessKeyID:", creds.AccessKeyID)
 	log.Println("SecretAccessKey:", creds.SecretAccessKey)
 	client := s3.NewFromConfig(cfg)
-	// log.Println(client.Credentials)
 	return client, nil
 } // client 
