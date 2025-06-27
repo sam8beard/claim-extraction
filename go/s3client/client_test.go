@@ -10,5 +10,4 @@ func TestNewClient(t *testing.T) {
 	if err != nil { 
 		t.Log(err)
 	}
-	fmt.Printf("%T\n", result)
 } // TestNewClient
