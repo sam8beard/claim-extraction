@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"context"
 	"os"
-	// "path/filepath"
 	"log"
 )
 
@@ -31,10 +30,11 @@ func NewClient() (*s3.Client, error) {
 		log.Fatal(err)
 		return nil, err
 	} // if 
-	log.Println(cfg.Region)
+
 	creds, err := cfg.Credentials.Retrieve(ctx)
 	log.Println("AccessKeyID:", creds.AccessKeyID)
 	log.Println("SecretAccessKey:", creds.SecretAccessKey)
 	client := s3.NewFromConfig(cfg)
 	return client, nil
+	
 } // client 
