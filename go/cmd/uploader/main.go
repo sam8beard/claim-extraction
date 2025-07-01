@@ -12,8 +12,8 @@ import (
 	"os"
 	"github.com/aws/aws-sdk-go/aws"
 	"log"
-	"github.com/jackc/pgx/v5"
-	"github.com/joho/godotenv"
+	// "github.com/jackc/pgx/v5"
+	// "github.com/joho/godotenv"
 )
 
 func main() { 
@@ -21,7 +21,7 @@ func main() {
 	var source string 
 
 	// set env vars 
-	
+
 	// identify which flags to look for - user must enter file path and source
 	flag.StringVar(&filePath, "file", "", "Path to the document")
 	flag.StringVar(&source, "source", "", "Source of the document")
