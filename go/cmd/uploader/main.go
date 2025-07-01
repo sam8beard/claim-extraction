@@ -12,8 +12,9 @@ import (
 	"os"
 	"github.com/aws/aws-sdk-go/aws"
 	"log"
-	// "github.com/jackc/pgx/v5"
-	// "github.com/joho/godotenv"
+	"github.com/sam8beard/claim-extraction/go/utils"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() { 
@@ -21,6 +22,11 @@ func main() {
 	var source string 
 
 	// set env vars 
+	err := utils.LoadDotEnvUpwards()
+	if err != nil { 
+		fmt.Println("Could not load .env variables")
+		return
+	} // if 
 
 	// identify which flags to look for - user must enter file path and source
 	flag.StringVar(&filePath, "file", "", "Path to the document")
@@ -71,6 +77,12 @@ func main() {
 
 	fmt.Println("Successfully uploaded to: ", result)
 
-	// Add meta data to postgres db here 
+	// establish connection to pg db
+	pool, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil { 
+		fmt.Println("Unable to establish database connection")
+		return
+	} // if 
+	defer pool.Close()
 
 } // main

@@ -23,7 +23,6 @@ func NewClient() (*s3.Client, error) {
 		return nil, err
 	} // if 
 
-	creds, err := cfg.Credentials.Retrieve(ctx)
 	client := s3.NewFromConfig(cfg)
 	return client, nil
 
