@@ -17,6 +17,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type Document struct { 
+	ID string
+    UploadedAt string
+    FileName string
+    Source string
+    TextExtracted bool
+    ContentHash string
+    S3Key string
+    FileSizeBytes int
+}
+
 func main() { 
 	var filePath string
 	var source string 
