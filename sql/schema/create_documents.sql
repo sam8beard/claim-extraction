@@ -4,6 +4,7 @@ CREATE TABLE documents (
     file_name TEXT NOT NULL, 
     source TEXT NOT NULL, 
     text_extracted BOOLEAN NOT NULL DEFAULT FALSE, 
-    content_hash TEXT NOT NULL
-    s3_key TEXT NOT NULL
+    content_hash TEXT UNIQUE NOT NULL,
+    s3_key TEXT NOT NULL,
+    file_size_bytes INTEGER
 )
