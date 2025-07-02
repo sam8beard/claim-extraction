@@ -7,11 +7,11 @@ import (
 	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"context"
-	"github.com/sam8beard/go/cmd/main"
+	"github.com/sam8beard/claim-extraction/go/models"
 	
 )
 
-func InsertDocumentMetadata(ctx context.Context, pool *pgxpool.Pool, doc *Document) error { 
+func InsertDocumentMetadata(ctx context.Context, pool *pgxpool.Pool, doc *models.Document) error { 
 	return pool.QueryRow(
 		ctx, 
 		`INSERT INTO documents 

@@ -14,9 +14,11 @@ import (
 	"time"
 	"os"
 	"github.com/aws/aws-sdk-go/aws"
-	"log"
+	"io"
+	// "log"
 	"github.com/sam8beard/claim-extraction/go/utils"
 	"github.com/sam8beard/claim-extraction/go/db"
+	"github.com/sam8beard/claim-extraction/go/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"crypto/sha256"
 	"encoding/hex"
@@ -25,6 +27,7 @@ import (
 func main() { 
 	var filePath string
 	var source string 
+	// var doc models.Document
 
 	// set env vars 
 	err := utils.LoadDotEnvUpwards()
@@ -44,8 +47,6 @@ func main() {
 		fmt.Println("Must provide file path and source to use")
 		return
 	} // if 
-
-	fmt.Println(filePath, source)
 
 	// connect to client
 	client, err := s3client.NewClient() 
@@ -104,7 +105,7 @@ func main() {
 		panic(err)
 	} // if 
 
-	fmt.Println("Successfully uploaded to S3 bucket: ", result)
+	fmt.Println("Successfully uploaded to S3 bucket: ", result, "\n")
 
 	// establish connection pool to pg db
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
@@ -114,7 +115,7 @@ func main() {
 	} // if 
 	defer pool.Close()
 	
-	doc := Document{ 
+	doc := models.Document{ 
 		FileName: fileName, 
 		Source: source, 
 		ContentHash: fileHash, 
@@ -123,13 +124,12 @@ func main() {
 		TextExtracted: false, 
 	} 
 	
-	fmt.Printf("Prepared document for insertion: %+v\n", doc)
+	fmt.Printf("Prepared document for insertion: %+v\n\n", doc)
 
 	// insert row
-	err := db.InsertDocumentMetadata(context.Background(), pool, &doc)
-
+	err = db.InsertDocumentMetadata(context.Background(), pool, &doc)
 	if err != nil {
-		fmt.Println("Error inserting row into database")
+		fmt.Println("Error inserting row into database: ", err)
 		return
 	} // if 
 
