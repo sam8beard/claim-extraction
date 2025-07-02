@@ -1,11 +1,24 @@
-/* Functions for inserting metadata into Postgres tables */ 
+/* 
+	Functions for inserting metadata into Postgres tables 
+*/ 
 package db 
 
 import ( 
-	"github.com/jackc/pgx/v5"
+	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"context"
+	"github.com/sam8beard/go/cmd/main"
+	
 )
 
-func InsertDocumentMetadata(ctx context.Context, p *pgxpool.Pool, doc Document) error { 
-
+func InsertDocumentMetadata(ctx context.Context, pool *pgxpool.Pool, doc *Document) error { 
+	return pool.QueryRow(
+		ctx, 
+		`INSERT INTO documents 
+		(file_name, source, text_extracted, content_hash, s3_key, file_size_bytes)
+		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
+		RETURNING id, uploaded_at;`, doc.FileName, doc.Source, doc.TextExtracted, doc.ContentHash, doc.S3Key, 
+		doc.FileSizeBytes,
+	).Scan(&doc.ID, &doc.UploadedAt)
+	
 } // InsertDocumentMetadata

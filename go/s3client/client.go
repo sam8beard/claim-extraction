@@ -1,3 +1,6 @@
+/*
+	Function to connect to S3 client
+*/
 package s3client
 
 import ( 

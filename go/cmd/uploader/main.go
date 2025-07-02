@@ -1,3 +1,6 @@
+/*
+	Entry point for file upload CLI tool
+*/
 package main
 
 import ( 
@@ -18,15 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 )
-
-type Document struct { 
-    FileName string
-    Source string
-    TextExtracted bool
-    ContentHash string
-    S3Key string
-    FileSizeBytes int
-}
 
 func main() { 
 	var filePath string
@@ -126,7 +120,19 @@ func main() {
 		ContentHash: fileHash, 
 		S3Key: fileKey, 
 		FileSizeBytes: int(fileSize),
+		TextExtracted: false, 
 	} 
+	
+	fmt.Printf("Prepared document for insertion: %+v\n", doc)
 
-	err := db.InsertDocumentMetadata(context.Background(), pool, doc)
+	// insert row
+	err := db.InsertDocumentMetadata(context.Background(), pool, &doc)
+
+	if err != nil {
+		fmt.Println("Error inserting row into database")
+		return
+	} // if 
+
+	fmt.Println("Successfully inserted row into Postgres database")
+	return 
 } // main
