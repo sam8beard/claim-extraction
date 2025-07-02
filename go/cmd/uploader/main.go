@@ -13,13 +13,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"log"
 	"github.com/sam8beard/claim-extraction/go/utils"
-	"github.com/jackc/pgx/v5"
+	"github.com/sam8beard/claim-extraction/go/db"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"crypto/sha256"
+	"encoding/hex"
 )
 
 type Document struct { 
-	ID string
-    UploadedAt string
     FileName string
     Source string
     TextExtracted bool
@@ -65,16 +65,40 @@ func main() {
 		panic(err)
 	} // if 
 	defer fileReader.Close() 
+	
+	// get file size for metadata 
+	fileInfo, err := fileReader.Stat() 
+	if err != nil { 
+		fmt.Println(err)
+		return
+	} // if 
+	fileSize := fileInfo.Size()
 
-	// make file key for upload 
+	// make new file reader for getting file hash for metadata
+	fileReader2, err := os.Open(filePath)
+	if err != nil { 
+		panic(err)
+	} // if 
+	defer fileReader2.Close() 
+	fileContents, err := io.ReadAll(fileReader2)
+	if err != nil { 
+		fmt.Println("Error reading file body")
+		return
+	} // if 
+	h := sha256.New()
+	h.Write(fileContents)
+	hashBytes := h.Sum(nil)
+	fileHash := hex.EncodeToString(hashBytes)
+
+	// make file key for upload/metadata
 	fileName := filepath.Base(filePath)
 	currTime := time.Now() 
 	formattedTime := currTime.Format(time.RFC3339)
 	fileKey := fmt.Sprint(source, "/", formattedTime, "_", fileName)
-	log.Println(fileKey)
 	
 	// link client to uploader
 	uploader := manager.NewUploader(client)
+
 	// insert row in bucket
 	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("claim-pipeline-docstore"),
@@ -86,14 +110,23 @@ func main() {
 		panic(err)
 	} // if 
 
-	fmt.Println("Successfully uploaded to: ", result)
+	fmt.Println("Successfully uploaded to S3 bucket: ", result)
 
-	// establish connection to pg db
-	pool, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	// establish connection pool to pg db
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil { 
 		fmt.Println("Unable to establish database connection")
 		return
 	} // if 
 	defer pool.Close()
+	
+	doc := Document{ 
+		FileName: fileName, 
+		Source: source, 
+		ContentHash: fileHash, 
+		S3Key: fileKey, 
+		FileSizeBytes: int(fileSize),
+	} 
 
+	err := db.InsertDocumentMetadata(context.Background(), pool, doc)
 } // main
