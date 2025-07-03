@@ -1,5 +1,5 @@
 # Python
-python/.env/
+python/venv/
 python/__pycache__/
 python/**/*.pyc
 python/**/*.pyo
