@@ -1,4 +1,4 @@
-import boto3, os, json, urllib.parse
+import boto3, os, json, urllib.parse, io, pymupdf
 from dotenv import load_dotenv
 
 # load env vars
@@ -10,10 +10,26 @@ s3 = boto3.client('s3')
 def main(): 
     test_file_download()
 
-# testing boto3 file downloading 
-def test_file_download(): 
+# testing boto3 file downloading || THIS WORKS
+def test_file_download():
     try:
-        s3.download_file('claim-pipeline-docstore', 'test/2025-06-24T15:09:44-04:00_basic-text.pdf', 'output.txt')
+        # write downloaded file to buffer
+        buf = io.BytesIO()
+        s3.download_fileobj('claim-pipeline-docstore', 'test/2025-06-24T15:09:44-04:00_basic-text.pdf', buf)
+
+        # extract text
+        doc = pymupdf.open('pdf', buf)
+        out = ""
+
+
+        for page in doc: 
+            # retrieve text from a page in pdf, add form feed char
+            text = page.get_text().encode('utf-8')
+            out += str(text) + "\f"
+        
+        # encode output string once more
+        text_bytes = out.encode('utf-8')
+        buf_out = io.BytesIO(text_bytes)
     except Exception as e: 
         print(e)
 
