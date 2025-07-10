@@ -27,9 +27,15 @@ def test_file_download():
             text = page.get_text().encode('utf-8')
             out += str(text) + "\f"
         
-        # encode output string once more
+        # encode output string once more and wrap in buf
         text_bytes = out.encode('utf-8')
         buf_out = io.BytesIO(text_bytes)
+
+        # create object key for upload # TO DO — examine naming convention in go cli tool
+        
+
+        # upload file
+        s3.upload_fileobj('claim-pipeline-docstore', '')
     except Exception as e: 
         print(e)
 
