@@ -6,5 +6,6 @@ CREATE TABLE documents (
     text_extracted BOOLEAN NOT NULL DEFAULT FALSE, 
     content_hash TEXT UNIQUE NOT NULL,
     s3_key TEXT NOT NULL,
-    file_size_bytes INTEGER
+    file_size_bytes INTEGER,
+    extracted_text_s3_key TEXT
 )
