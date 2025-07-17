@@ -20,7 +20,6 @@ def test_file_download():
         # extract text
         doc = pymupdf.open('pdf', buf)
         out = ""
-        print()
 
         for page in doc: 
             # retrieve text from a page in pdf, add form feed char
