@@ -8,10 +8,10 @@ load_dotenv()
 s3 = boto3.client('s3') 
 
 def main(): 
-    test_file_download()
+    test_file_download_upload()
 
 # testing boto3 file downloading || THIS WORKS
-def test_file_download():
+def test_file_download_upload():
     try:
         # write downloaded file to buffer
         buf = io.BytesIO()
@@ -31,10 +31,12 @@ def test_file_download():
         buf_out = io.BytesIO(text_bytes)
 
         # create object key for upload # TO DO — examine naming convention in go cli tool
-        
+        # naming convention example: test/extracted_text/2025-06-24T15:09:44-04:00_basic-text.txt
+        object_key = "test/extracted_text/2025-06-24T15:09:44-04:00_basic-text.txt"
 
         # upload file
-        s3.upload_fileobj('claim-pipeline-docstore', '')
+        s3.upload_fileobj(buf_out, 'claim-pipeline-docstore', object_key)
+
     except Exception as e: 
         print(e)
 
