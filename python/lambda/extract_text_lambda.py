@@ -37,6 +37,9 @@ def test_file_download_upload():
         # upload file
         s3.upload_fileobj(buf_out, 'claim-pipeline-docstore', object_key)
 
+        # SHOULD LOG EXTRACTED TEXT KEY HERE IN DOCUMENTS TABLE !!!
+
+        
     except Exception as e: 
         print(e)
 
