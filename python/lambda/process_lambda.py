@@ -5,7 +5,11 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # connect to s3 client
-s3 = boto3.client('s3') 
+s3 = boto3.client('s3')
+
+# connect to sns client
+sns = boto3.client('sns')
+
 
 # main handler for extraction lambda
 def process_handler(event, context): 
@@ -64,3 +68,8 @@ def process_handler(event, context):
     except Exception as e: 
         logger.error(f"Failed to upload processed file: {e}")
         return 
+    
+    # send message to sns indicating file has been successfully processed 
+    topic_arn = "arn:aws:sns:us-east-2:728951503252:claim-extraction-messaging"
+    message_content = "File successfully processed and uploaded"
+    resp = sns.publish(TopicArn=topic_arn, Message=message_content)

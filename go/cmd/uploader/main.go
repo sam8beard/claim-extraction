@@ -33,6 +33,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 func main() { 
@@ -117,7 +120,9 @@ func main() {
 	} // if 
 
 	fmt.Println("Successfully uploaded to S3 bucket: ", result, "\n")
-
+	
+	
+	
 	// establish connection pool to pg db
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil { 
@@ -126,6 +131,8 @@ func main() {
 	} // if 
 	defer pool.Close()
 	
+	// If file was properly processed, then insert row with TextExtracted = true 
+	// else, TextExtracted = false
 	doc := models.Document{ 
 		FileName: fileName, 
 		Source: source, 
@@ -136,14 +143,16 @@ func main() {
 	} 
 	
 	fmt.Printf("Prepared document for insertion: %+v\n\n", doc)
-
+	
 	// insert row
 	err = db.InsertDocumentMetadata(context.Background(), pool, &doc)
 	if err != nil {
 		fmt.Println("Error inserting row into database: ", err)
 		return
 	} // if 
-
+	
 	fmt.Println("Successfully inserted row into Postgres database")
+
+	
 	return 
 } // main
