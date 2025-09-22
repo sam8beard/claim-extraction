@@ -1,5 +1,16 @@
 /*
 	Entry point for file upload CLI tool
+
+	Compilation: 
+	cd go/cmd/uploader 
+	./build.sh
+
+	Usage: 
+	./upload --file [path-to-file] --source [source-name]
+
+	* NOTE * 
+	Source names cannot be whitespace separated
+	
 */
 package main
 
@@ -89,7 +100,7 @@ func main() {
 	fileName := filepath.Base(filePath)
 	currTime := time.Now() 
 	formattedTime := currTime.Format(time.RFC3339)
-	fileKey := fmt.Sprint(source, "/", formattedTime, "_", fileName)
+	fileKey := fmt.Sprint("raw","/", source, "/", formattedTime, "-", fileName)
 	
 	// link client to uploader
 	uploader := manager.NewUploader(client)

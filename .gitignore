@@ -5,8 +5,15 @@ python/**/*.pyc
 python/**/*.pyo
 python/*.egg-info/
 
+# Vscode
+.vscode/
+
+# Lambda 
+python/lambda/deployment_package.zip
+
 # go executables 
 go/cmd/uploader/upload
+upload.sh
 
 # macOS
 .DS_Store
