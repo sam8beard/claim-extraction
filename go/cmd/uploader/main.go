@@ -20,6 +20,7 @@ import (
 	"github.com/sam8beard/claim-extraction/go/s3client"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"context"
 	"path/filepath"
 	"time"
@@ -33,17 +34,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/sam8beard/claim-extraction/go/sqsclient"
 )
 
 func main() { 
 	var filePath string
 	var source string 
-	// var doc models.Document
 
-	// set env vars 
+	// set env vars for db conn ection
 	err := utils.LoadDotEnvUpwards()
 	if err != nil { 
 		fmt.Println("Could not load .env variables")
@@ -62,11 +60,20 @@ func main() {
 		return
 	} // if 
 
-	// connect to client
-	client, err := s3client.NewClient() 
+	// connect to s3 client
+	clientS3, err := s3client.NewClient() 
 	if err != nil { 
 		panic(err)
 	} // if
+	
+	// connect to sqs client
+	clientSQS, err := sqsclient.NewClient()
+	if err != nil { 
+		panic(err)
+	} // if 
+
+	// try this 
+
 	
 	// get file reader for upload
 	fileReader, err := os.Open(filePath)
@@ -105,9 +112,28 @@ func main() {
 	formattedTime := currTime.Format(time.RFC3339)
 	fileKey := fmt.Sprint("raw","/", source, "/", formattedTime, "-", fileName)
 	
-	// link client to uploader
-	uploader := manager.NewUploader(client)
+	// link s3 client to uploader
+	uploader := manager.NewUploader(clientS3)
+	
+	// create queue url input
+	queueUrl := "https://sqs.us-east-2.amazonaws.com/728951503252/claim-extraction-message-queue"
+	// input := &sqs.GetQueueUrlInput{
+	// 	QueueName: aws.String(queueName)
+	// }
 
+	// // get queue url 
+	// result, err := clientSQS(input)
+	// if err != nil { 
+	// 	panic(err)
+	// } // if 
+	// result, err := clientSQS.GetQueueUrl(&sqs.GetQueueUrlInput{
+	// 	QueueName: queueName
+	// })
+	// if err != nil { 
+	// 	panic(err)
+	// } // err
+	
+	
 	// insert row in bucket
 	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("claim-pipeline-docstore"),
@@ -118,11 +144,21 @@ func main() {
 	if err != nil { 
 		panic(err)
 	} // if 
-
+	
 	fmt.Println("Successfully uploaded to S3 bucket: ", result, "\n")
 	
+	// wait for message to confirm file has been processed 
+	output, err := clientSQS.ReceiveMessage(context.TODO(), &sqs.ReceiveMessageInput{
+		QueueUrl: aws.String(queueUrl),
+		WaitTimeSeconds: 20,
+	})
 	
+	if err != nil { 
+		panic(err)
+	} // if 
+
 	
+
 	// establish connection pool to pg db
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil { 
@@ -131,8 +167,7 @@ func main() {
 	} // if 
 	defer pool.Close()
 	
-	// If file was properly processed, then insert row with TextExtracted = true 
-	// else, TextExtracted = false
+	// create document entry
 	doc := models.Document{ 
 		FileName: fileName, 
 		Source: source, 
@@ -141,6 +176,13 @@ func main() {
 		FileSizeBytes: int(fileSize),
 		TextExtracted: false, 
 	} 
+
+	// If file was properly processed, then insert row with TextExtracted = true 
+	// else, TextExtracted = false
+	if len(output.Messages) > 0{ 
+		doc.TextExtracted = true
+	} // if
+	
 	
 	fmt.Printf("Prepared document for insertion: %+v\n\n", doc)
 	

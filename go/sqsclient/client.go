@@ -1,16 +1,16 @@
 /*
-	Function to connect to S3 client
+	Function to connect to SNS client
 */
-package s3client
+package sqsclient
 
 import ( 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"context"
 	"log"
 )
 
-func NewClient() (*s3.Client, error) { 
+func NewClient() (*sqs.Client, error) { 
 
 	ctx := context.TODO()
 
@@ -20,7 +20,9 @@ func NewClient() (*s3.Client, error) {
 		return nil, err
 	} // if 
 
-	client := s3.NewFromConfig(cfg)
+	client := sqs.NewFromConfig(cfg)
 	return client, nil
 
-} // 
+} // NewClient
+
+
