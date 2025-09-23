@@ -1,3 +1,3 @@
 #!/bin/bash
 
-go/cmd/uploader/upload "$@"
+go/uploader/upload "$@"

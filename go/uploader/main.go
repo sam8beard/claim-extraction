@@ -2,7 +2,7 @@
 	Entry point for file upload CLI tool
 
 	Compilation: 
-	cd go/cmd/uploader 
+	cd go/uploader 
 	./build.sh
 
 	Usage: 

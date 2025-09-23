@@ -12,8 +12,13 @@ python/*.egg-info/
 python/lambda/deployment_package.zip
 
 # go executables 
-go/cmd/uploader/upload
+go/uploader/upload
 upload.sh
+go/uploader/build.go
+go/uploader/run-test.go
+go/s3_fetcher/build.sh
+go/s3_fetcher/fetch-keys
+
 
 # macOS
 .DS_Store
@@ -31,3 +36,5 @@ pgadmin-data/
 
 # environment vars
 .env
+
+python/nlp/training/*
