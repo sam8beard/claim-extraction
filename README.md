@@ -1,4 +1,3 @@
-# claim-extraction
 # AI Ethics Claim Extraction Pipeline
 
 This project is a **multi-stage NLP pipeline** designed to extract claims from documents in the domain of AI ethics and safety.  
@@ -71,8 +70,8 @@ The pipeline consists of three main components:
    pip install -r requirements.txt
     ```
 7. Install spaCy language models: 
-```bash
+    ```bash
     pip -m spacy download en_core_web_trf
-```
+    ```
 ---
 # IN PROGRESS
