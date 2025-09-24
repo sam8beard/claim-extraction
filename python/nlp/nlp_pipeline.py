@@ -7,6 +7,12 @@ nlp = spacy.load("en_core_web_trf")
 
 #  custom NER entities and labels
 artint_labels = [
+
+    # need to edit to avoid other entities that have AI in name
+    # maybe check if its already labeled ORG? i think this only works "AI"
+
+    # it seems that only mentions of ai that are labeled as ORG 
+    # are not part of any kind of institution name
     {"label": "ARTINT", "pattern": "Artificial Intelligence"},
     {"label": "ARTINT", "pattern": "A.I."},
     {"label": "ARTINT", "pattern": "AI"}
@@ -73,9 +79,12 @@ def main():
 
     
     # pull files, convert to text, convert to string list
-    
+    sentence_count = 0
+    token_count = 0
     for doc in nlp.pipe(pull_s3_files()):
-
+        sentence_count += len(list(doc.sents))
+        token_count += len(doc)
+        print("Current num of sentences: ", sentence_count)
         # validate tokenization, segmentation, and named entity recognition
         # print("Sentences: \n")
         # for sent in doc.sents: 
@@ -89,7 +98,8 @@ def main():
 
 
         # print(doc)
-
+    print("Sentence count: ", sentence_count)
+    print("Token count: ", token_count)
     # pass all strings into pipeline and create a doc list 
 
 if __name__ == "__main__": 

@@ -43,3 +43,5 @@ python/nlp/training/*
 python/nlp/logs/*
 
 go/uploader/nlp-files/*
+
+python/nlp/populate-logs.sh
