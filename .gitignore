@@ -38,3 +38,8 @@ pgadmin-data/
 .env
 
 python/nlp/training/*
+
+# nlp logs
+python/nlp/logs/*
+
+go/uploader/nlp-files/*

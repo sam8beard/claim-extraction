@@ -7,7 +7,8 @@ s3 = boto3.client('s3')
 def pull_s3_files(): 
     
     # open file and read file with keys
-    file_path = Path(__file__).parent.parent / "nlp/training/s3-keys.json"
+    file_path = Path(__file__).parent.parent / "training/s3-keys.json"
+ 
     with open (file_path, "r") as file: 
         keys = json.load(file)
 
