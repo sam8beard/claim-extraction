@@ -54,6 +54,7 @@ func main() {
 		rows.Scan(&key)
 		ext := path.Ext(key) 
 		newKey := strings.Replace(key, ext, ".txt", 1)
+		newKey = strings.Replace(newKey, "raw", "processed", 1)
 		keys = append(keys, newKey)
 
 	} // for
