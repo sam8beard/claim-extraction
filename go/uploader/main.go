@@ -45,6 +45,7 @@ func main() {
 	err := utils.LoadDotEnvUpwards()
 	if err != nil { 
 		fmt.Println("Could not load .env variables")
+		fmt.Println(err)
 		return
 	} // if 
 
@@ -156,8 +157,6 @@ func main() {
 	if err != nil { 
 		panic(err)
 	} // if 
-
-	
 
 	// establish connection pool to pg db
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
