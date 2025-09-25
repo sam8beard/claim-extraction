@@ -1,8 +1,8 @@
 # claim-extraction
 # AI Ethics Claim Extraction Pipeline
 
-This project is a **multi-stage NLP pipeline** designed to extract claims from documents in the domain of AI ethics and safety.  
-It combines **Go**, **AWS Lambda**, **S3**, **Postgres**, and **spaCy** for a fully automated document ingestion and processing workflow.
+This project is a multi-stage NLP pipeline** designed to extract claims from documents in the domain of AI ethics and safety.  
+It combines Go, AWS Lambda, S3, Postgres, and spaCy for a fully automated document ingestion and processing workflow.
 
 ---
 
@@ -12,8 +12,8 @@ It combines **Go**, **AWS Lambda**, **S3**, **Postgres**, and **spaCy** for a fu
 - [Architecture](#architecture)  
 - [Setup](#setup)  
 - [Usage](#usage)  
-- [Pipeline Flow](#pipeline-flow)  
-- [Future Work](#future-work)  
+<!-- - [Pipeline Flow](#pipeline-flow)  
+- [Future Work](#future-work)   -->
 
 ---
 
@@ -45,7 +45,7 @@ The pipeline consists of three main components:
 
 3. **Python NLP Processor**  
    Downloads processed text from S3.  
-   Runs claim extraction using **spaCy** with custom rules and named entity recognition.  
+   Runs claim extraction using spaCy with custom rules and named entity recognition.  
 
 ---
 
@@ -61,7 +61,7 @@ The pipeline consists of three main components:
 
 ### Steps
 
-1. Clone this repository  
+1. Clone
 2. Set up Postgres locally (via Docker or otherwise)  
 3. Create an S3 bucket and SNS topic in AWS  
 4. Deploy Lambda function for text extraction  
