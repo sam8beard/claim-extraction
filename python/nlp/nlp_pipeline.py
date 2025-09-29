@@ -117,6 +117,12 @@ def main():
             # -----------------------------------------
             # -----------------------------------------
             # -----------------------------------------
+            # for each sentence: 
+            # 1. find claim verbs 
+            # 2. look in dependency parse for the source of claim
+            # 3. find object/complement 
+            # 4. check if tech or ai terms occur inside the object 
+            #       - this will qualify the claim
         except Exception as e: 
             print(e)
             return 
