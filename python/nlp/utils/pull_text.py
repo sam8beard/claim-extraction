@@ -29,10 +29,11 @@ def pull_one_file():
     with open (file_path, "r") as file: 
         keys = json.load(file)
 
+    object_key = keys[0]
     
-    for object_key in keys:
-        file_object = s3.get_object(Bucket="claim-pipeline-docstore", Key=object_key)
-        # read from object body and decode 
-        file_contents = file_object['Body'].read().decode('utf-8')
+    file_object = s3.get_object(Bucket="claim-pipeline-docstore", Key=object_key)
+    # read from object body and decode 
+    file_contents = file_object['Body'].read().decode('utf-8')
 
-        return file_contents
+    return file_contents
+        

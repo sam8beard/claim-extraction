@@ -125,7 +125,16 @@ def test_one_file():
         # 3. find object/complement 
         # 4. check if tech or ai terms occur inside the object 
         #       - this will qualify the claim
-        tokens = []
+
+        # EXPLICIT CLAIM STRUCTURE: 
+        # Dependencies USUALLY are 
+        #   - root verb (claim_verb)
+        #   - nsubj (source)
+        #   - ccomp (clausal complement -> proposition/claim content)
+
+        # structure triplet might look like: 
+        # (source: nsubj, verb: claim_verb, proposition: ccomp)
+
        
         for v, s in enumerate(doc.sents):
             # note: didn't adjust index num for empty sentences, change later if needed.
@@ -135,30 +144,51 @@ def test_one_file():
                     
                 print("\nSentence number: ", v, "-----------------------")
                 print("Original sent: ", str(s))
-                print(str(s).isspace())
+                # ------------------------------------------------------------
                 # iterate over tokens 
                 # check 
                 #   - lemma or pos for a matching claim verb 
                 #   - dep for lables like nsubj, dobj, (research these)
                 #   - use subtree to get related tokens for source and object
-                # tokens.append([t.text for t in s])
+                #--------------------------------------------------------------
                 claim_sent = []
                 for t in s:
-                    
+
                     # convert list of claim verb spans to strings for equality checking 
                     string_spans = [str(s) for s in list(doc.spans["claim_verb"])]
 
-                    if t.dep_ == "nsubj" or t.dep_ == "dobj": 
-                        print("Subject/Object found: ", t.text)
-                        claim_sent.append(t.text)
-                    # check for tokens that are claim verbs
-                    if t.pos_ == "VERB" and t.lemma_ in string_spans:
-                        print("CLAIM VERB FOUND: ", t.text)
-                        print("Syntactic dependency relation: ", t.dep_)
-                        claim_sent.append(t.text)
+                    # if token is claim verb
+                    if t.text in string_spans:
+                        print("\nClaim verb found: ", t.text)
+                        children = [tok for tok in t.subtree]
+                        print("\nChildren of claim verb: ", children)
+
+
+
+                #     # testing getting portions of text that are subjects and also ORGs
+                #     if t.dep_ == "nsubj" and t.ent_type_ == "ORG": 
+                #         print("Subject ORG types -------------------")
+                #         print("Subject: ", t.text)
+                #         print("Subtree: ", [tok.text for tok in t.subtree])
+
+                #     # testing getting claim verbs and their subtrees
+                #     if t.pos_ == "VERB" and t.lemma_ in string_spans:
+                #         print("Claim verbs and their subtree ---------------------")
+                #         print("Claim verb: ", t.text)
+                #         print("Subtree: ", [tok.text for tok in t.subtree])
                     
-                if claim_sent: print("Claim sent: ", claim_sent)
-            
+
+                #     if t.dep_ == "nsubj" or t.dep_ == "dobj": 
+                #         print("Subject/Object found: ", t.text)
+                #         claim_sent.append(t.text)
+                #     # check for tokens that are claim verbs
+                #     if t.pos_ == "VERB" and t.lemma_ in string_spans:
+                #         print("CLAIM VERB FOUND: ", t.text)
+                #         print("Syntactic dependency relation: ", t.dep_)
+                #         claim_sent.append(t.text)
+                    
+                # if claim_sent: print("Claim sent: ", claim_sent)
+
             # breaks at 1000 sentences
             if v == 1000: 
                 break
@@ -169,21 +199,7 @@ def test_one_file():
     
 # tester for all files
 def test_all_files(): 
-    # # create matchers for target terms
-    # a_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
-    # cv_matcher = Matcher(nlp.vocab)
-    # t_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
     
-    # # define patterns - must make doc for each individual term
-    # artint_patterns = [nlp.make_doc(t) for t in artint_terms]
-    # a_matcher.add("ARTINT", artint_patterns)
-    # tech_patterns = [nlp.make_doc(t) for t in tech_terms]
-    # t_matcher.add("TECH", tech_patterns)
-
-    # # create list of lemma dictionaries for each claim verb
-    # claim_verb_patterns = [[{"LEMMA": c}] for c in claim_verb_terms]
-    # cv_matcher.add("CLAIM_VERB", claim_verb_patterns)
-
     # possibly change and process all text at once
     for i, doc in enumerate(nlp.pipe(pull_all_files())):
         # ****** must make doc per span to add ******
