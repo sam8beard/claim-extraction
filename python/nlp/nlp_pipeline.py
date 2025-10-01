@@ -1,4 +1,8 @@
 import spacy 
+import re
+import unicodedata
+from spacy import displacy
+import pprint
 from spacy.matcher import PhraseMatcher
 from spacy.matcher import Matcher
 from spacy.matcher import DependencyMatcher
@@ -7,6 +11,8 @@ from spacy.pipeline import EntityRuler
 from spacy.util import filter_spans
 from utils.pull_text import pull_all_files
 from utils.pull_text import pull_one_file
+from utils.pull_text import preprocess_text
+
 # load model
 nlp = spacy.load("en_core_web_trf")
 
@@ -75,8 +81,146 @@ t_matcher.add("TECH", tech_patterns)
 claim_verb_patterns = [[{"LEMMA": c}] for c in claim_verb_terms]
 cv_matcher.add("CLAIM_VERB", claim_verb_patterns)
 
+text = """
+OpenAI researchers argue that robust safety protocols are essential for advanced AI systems. The European Commission has proposed regulations to ensure ethical AI development. Google maintains that transparency in AI decision-making is critical for public trust. Some experts claim that autonomous weapons powered by AI pose significant risks to global security. The Partnership on AI suggests that collaboration between industry and academia can improve AI safety standards. Microsoft asserts that bias mitigation in AI models should be a top priority. The Future of Life Institute warns that unchecked AI development could lead to unintended consequences. IBM demonstrates that explainable AI can help users understand complex model outputs. Stanford University researchers contend that ethical guidelines must evolve alongside AI capabilities. The Alan Turing Institute recommends regular audits of AI systems to detect and correct harmful behaviors.
 
-# tester for one file
+Meta affirms that user privacy must be protected in AI-driven platforms. The United Nations calls for international cooperation to address AI safety challenges. Some ethicists maintain that AI should never be used for mass surveillance. DeepMind illustrates that reinforcement learning agents can be aligned with human values through careful reward design. The Center for Humane Technology advocates for responsible AI deployment in social media. Tesla claims that self-driving cars require rigorous safety validation before widespread adoption. The AI Now Institute emphasizes the importance of public input in shaping AI policy. Researchers at MIT propose that AI ethics education should be integrated into computer science curricula. The World Economic Forum encourages governments to invest in AI safety research. Amazon suggests that fairness in AI-powered hiring tools is achievable with diverse training data.
+
+Harvard scholars argue that AI systems must be held accountable for their decisions. The OECD recommends standardized reporting for AI incidents and failures. Some technologists contend that open-source AI frameworks can foster safer innovation. The National Institute of Standards and Technology (NIST) demonstrates that robust testing environments are vital for AI reliability. The Ethics Advisory Board at Google insists that stakeholder engagement is necessary for ethical AI governance. The Royal Society claims that interdisciplinary research can address complex AI safety issues. The Mozilla Foundation calls for greater transparency in AI algorithms used online. Some policy makers maintain that AI should be subject to strict liability laws. The Institute of Electrical and Electronics Engineers (IEEE) proposes global standards for AI safety and ethics. The Responsible AI Consortium advocates for continuous monitoring of deployed AI systems.
+
+The AI Ethics Lab suggests that scenario analysis can help anticipate potential risks. Some legal experts argue that AI-generated content should be clearly labeled. The Global Partnership on Artificial Intelligence (GPAI) recommends sharing best practices for AI safety across borders. The Stanford Human-Centered AI initiative claims that participatory design can reduce ethical risks in AI products. The Oxford Internet Institute maintains that public awareness campaigns are needed to educate users about AI safety. The Center for Security and Emerging Technology (CSET) asserts that national security strategies must account for AI vulnerabilities. The Carnegie Mellon University Robotics Institute demonstrates that simulation-based testing can uncover hidden flaws in AI systems.
+"""
+# testing alternative approach ----------------------------------------------------------------------
+
+# for regex testing
+def join_words_with_pipe(strings):
+    return "|".join(" ".join(s.split()) for s in strings)
+
+def print_orgs(): 
+    doc = nlp(pull_one_file())
+    orgs = [ent.text for ent in doc.ents if ent.label_=="ORG"]
+    print(*orgs, sep='\n')
+
+def print_claim_orgs(): 
+    # processed = pull_one_file().replace()
+    doc = nlp(pull_one_file())
+    pattern = join_words_with_pipe(claim_verb_terms)
+    claim_orgs = set()
+    claim_sents = set()
+    for ent in doc.ents: 
+        if ent.label_ != "ORG": 
+            continue
+        if re.search(pattern, ent.sent.text): 
+            claim_orgs.add(ent.text)
+            claim_sents.add(ent.sent.text)
+    print(*claim_orgs, sep='\n')
+    print(*claim_sents, sep='\n')
+    # print("\nCLAIM ORGS ----------------------------------")
+    # pprint.pprint(claim_orgs)
+    # print("\nCLAIM SENTENCES -----------------------------")
+    # pprint.pprint(claim_sents)
+
+# a function that identifies claim verbs and direct objects that are grammatically linked to a source
+def source_to_claim(source):
+    claim_phrase = []
+    claim_verb = ""
+    claim_subtree = ""
+    # iterate through all ancestors of the source token
+    for a in source.ancestors: 
+        # when you get to a claim verb
+        if a.lemma_ in claim_verb_terms: 
+            # add verb to phrase list
+            # print("\nAdding verb: ", a.text)
+            claim_phrase.append(a)
+            # print(claim_phrase)
+            claim_verb = a.lemma_
+
+            # all descendants to the right of the root/claim verb that 
+            claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i])
+            
+            # then also add the direct object(s) of that claim verb, 
+            # as long as the original token is in the same subtree as 
+            # the direct object
+            # (need to find a way to supercede non dobj dependencies and retrieve whole propositions?)
+            # print("Adding direct objects...")
+            claim_phrase.extend([j for j in a.children if j.dep_ == "dobj" and source in a.subtree])
+            # print(claim_phrase)
+            # print("Verb subtree: ", list(a.subtree)) # gets every single word in a claim sentence
+
+            # stop after the first verb
+            # print("Verb children:" , list(a.children))
+            # print("Right children of verb: ", [t.text for t in ])
+
+            break
+    
+    # expand out verb phrase to get modifiers of the direct object
+    for tok in claim_phrase: 
+        for i in tok.children: 
+            # print("Child of ", tok.text, ": ", i.text)
+            if i.dep_ == "amod": 
+                # print("Adding modifers to verb phrase...")
+                claim_phrase.append(i)
+                # print(claim_phrase)
+                
+            # if i.dep_ == "prep":
+            #     # claim_phrase.extend([j for j in i.children if j.dep_ == "pobj" and source in  ])
+            #     claim_phrase.extend([c for c in i.children if source in tok.subtree])
+            #     print("Whats this look like: ", claim_phrase)
+        # for i in tok.children: 
+        #     if i.dep_ == "prep": 
+        #         claim_phrase.extend([j for j in ])
+    # sort tokens by position in original sentence
+    # print(claim_phrase)
+    new_list = sorted(claim_phrase, key=lambda x: x.i)
+    return ''.join([i.text_with_ws for i in new_list]).strip(), claim_verb, claim_subtree
+
+
+
+def test_preprocess(): 
+    print(preprocess_text(pull_one_file()))
+    # print(preprocess_text(text))
+
+def print_source_to_claim(): 
+    # doc = nlp(pull_one_file())
+    doc = nlp(preprocess_text(pull_one_file()))
+    claims = []
+    relations = dict()
+    explicit_claims = []
+    for ent in doc.ents: 
+        if ent.label_ == "ORG": 
+            relations[ent.text], claim_verb, claim_subtree = source_to_claim(ent.root)
+            if claim_verb and claim_subtree:
+                explicit_claims.append((ent.text, claim_verb, claim_subtree))
+            # claims.append(source_to_claim(ent.root))
+    # for token in doc: 
+    #     if token.ent_type_ == "ORG": 
+    #         relations[token.text] = source_to_claim(token)
+    #         claims.append(source_to_claim(token))
+
+    # for ent in doc.ents: 
+    #     if ent
+    # print(sorted(list(set(claims))))
+    # see_relations(doc)
+    # pprint.pprint(relations)
+    pprint.pprint(explicit_claims)
+    # print(relations)
+
+def see_relations(doc): 
+    displacy.serve(doc, style="dep", auto_select_port=True)
+
+def lets_see(): 
+    for i, doc in enumerate(nlp.pipe(pull_all_files())):
+        claims = []
+        relations = dict()
+        explicit_claims = []
+        for ent in doc.ents: 
+            if ent.label_ == "ORG": 
+                relations[ent.text], claim_verb, claim_subtree = source_to_claim(ent.root)
+                if claim_verb and claim_subtree:
+                    explicit_claims.append((ent.text, claim_verb, claim_subtree))
+        pprint.pprint(explicit_claims)
+
+# tester for one file ------------------------------------------------------------------------------------
 def test_one_file(): 
     
     # process doc 
@@ -95,21 +239,24 @@ def test_one_file():
         artint_id = nlp.vocab.strings["ARTINT"]
         artint_spans = [Span(doc, start, end, label=artint_id) for _, start, end in a_matches]
         doc.spans["art_int"] = artint_spans
-        print("\nARTINT Spans --------------------------------------------")
-        print(doc.spans["art_int"])
+        # print("\nARTINT Spans --------------------------------------------")
+        # print(doc.spans["art_int"])
 
         claim_verb_id = nlp.vocab.strings["CLAIM_VERB"]
         claim_verb_spans = [Span(doc, start, end, label=claim_verb_id) for _, start, end in cv_matches]
         doc.spans["claim_verb"] = claim_verb_spans
-        print("\nCLAIM_VERB Spans --------------------------------------------")
-        print(doc.spans["claim_verb"])
+        # print("\nCLAIM_VERB Spans --------------------------------------------")
+        # print(doc.spans["claim_verb"])
 
         tech_id = nlp.vocab.strings["TECH"]
         tech_spans = [Span(doc, start, end, label=tech_id) for _, start, end in t_matches]
         doc.spans["tech"] = tech_spans
-        print("\nTECH Spans --------------------------------------------")
-        print(doc.spans["tech"])
+        # print("\nTECH Spans --------------------------------------------")
+        # print(doc.spans["tech"])
 
+
+       
+        
         # PROCESS DOC......
         # -----------------------------------------
         # -----------------------------------------
@@ -125,7 +272,13 @@ def test_one_file():
         # 3. find object/complement 
         # 4. check if tech or ai terms occur inside the object 
         #       - this will qualify the claim
-
+        # ------------------------------------------------------------
+        # iterate over tokens 
+        # check 
+        #   - lemma or pos for a matching claim verb 
+        #   - dep for lables like nsubj, dobj, (research these)
+        #   - use subtree to get related tokens for source and object
+        #--------------------------------------------------------------
         # EXPLICIT CLAIM STRUCTURE: 
         # Dependencies USUALLY are 
         #   - root verb (claim_verb)
@@ -135,7 +288,42 @@ def test_one_file():
         # structure triplet might look like: 
         # (source: nsubj, verb: claim_verb, proposition: ccomp)
 
-       
+        # REVISED APPROACH 2.0
+        # from spacy.matcher import Matcher
+
+        # matcher = Matcher(nlp.vocab)
+        # # Example: Match "X announced Y" where X is a PROPN (Proper Noun) and Y is a NOUN or VERB
+        # pattern = [{"POS": "PROPN"}, {"LEMMA": "announce"}, {"POS": {"IN": ["NOUN", "VERB"]}}]
+        # matcher.add("CLAIM_ANNOUNCEMENT", [pattern])
+
+        # matches = matcher(doc)
+        # for match_id, start, end in matches:
+        #     span = doc[start:end]
+        #     print(f"Claim candidate: {span.text}")
+
+
+
+        # Dependency Parsing for Deeper Understanding.
+        # Analyze the dependency tree to understand the relationships between words and 
+        # identify the subject and object of assertive verbs, which can help in pinpointing the core of a claim.
+        # from spacy.matcher import Matcher
+
+        # matcher = Matcher(nlp.vocab)
+        # # Example: Match "X announced Y" where X is a PROPN (Proper Noun) and Y is a NOUN or VERB
+        # pattern = [{"POS": "PROPN"}, {"LEMMA": "announce"}, {"POS": {"IN": ["NOUN", "VERB"]}}]
+        # matcher.add("CLAIM_ANNOUNCEMENT", [pattern])
+
+        # matches = matcher(doc)
+        # for match_id, start, end in matches:
+        #     span = doc[start:end]
+        #     print(f"Claim candidate: {span.text}")
+      
+        # For more sophisticated claim extraction, especially when dealing with varied and nuanced claims, you might train a custom machine learning model. This would involve:
+
+        #     Annotating a dataset: Manually label text segments as claims or non-claims.
+        #     Feature engineering: Extract features from spaCy's Doc objects (POS tags, dependency relations, entity types, etc.) to train your model.
+        #     Training a classifier: Use a classification algorithm (e.g., Support Vector Machines, Logistic Regression, or deep learning models) to learn to identify claims.
+
         for v, s in enumerate(doc.sents):
             # note: didn't adjust index num for empty sentences, change later if needed.
 
@@ -144,50 +332,37 @@ def test_one_file():
                     
                 print("\nSentence number: ", v, "-----------------------")
                 print("Original sent: ", str(s))
-                # ------------------------------------------------------------
-                # iterate over tokens 
-                # check 
-                #   - lemma or pos for a matching claim verb 
-                #   - dep for lables like nsubj, dobj, (research these)
-                #   - use subtree to get related tokens for source and object
-                #--------------------------------------------------------------
-                claim_sent = []
-                for t in s:
+                
+                # convert list of claim verb spans to strings for equality checking 
+                string_spans = [str(s) for s in list(doc.spans["claim_verb"])]
 
-                    # convert list of claim verb spans to strings for equality checking 
-                    string_spans = [str(s) for s in list(doc.spans["claim_verb"])]
+                for t in s:
+                    # structured claim
+                    source, claim_verb, prop = "", "", ""
+                    claim_triplet = []
 
                     # if token is claim verb
                     if t.text in string_spans:
+                        
                         print("\nClaim verb found: ", t.text)
                         children = [tok for tok in t.subtree]
                         print("\nChildren of claim verb: ", children)
+                        claim_verb = t.text
+                        
+                        # iterate through subtree
+                        for child in children: 
+                            # find subject
+                            if child.dep_ == "nsubj": 
+                                # print("\nSubject found: ", child.text)
+                                source = child.text
 
+                            # find proposition
+                            if child.dep_ == "ccomp" or child.dep_ == "dobj": 
+                                # print("\nProposition found: ", child.text, child.dep_)
+                                prop = child.text
 
-
-                #     # testing getting portions of text that are subjects and also ORGs
-                #     if t.dep_ == "nsubj" and t.ent_type_ == "ORG": 
-                #         print("Subject ORG types -------------------")
-                #         print("Subject: ", t.text)
-                #         print("Subtree: ", [tok.text for tok in t.subtree])
-
-                #     # testing getting claim verbs and their subtrees
-                #     if t.pos_ == "VERB" and t.lemma_ in string_spans:
-                #         print("Claim verbs and their subtree ---------------------")
-                #         print("Claim verb: ", t.text)
-                #         print("Subtree: ", [tok.text for tok in t.subtree])
-                    
-
-                #     if t.dep_ == "nsubj" or t.dep_ == "dobj": 
-                #         print("Subject/Object found: ", t.text)
-                #         claim_sent.append(t.text)
-                #     # check for tokens that are claim verbs
-                #     if t.pos_ == "VERB" and t.lemma_ in string_spans:
-                #         print("CLAIM VERB FOUND: ", t.text)
-                #         print("Syntactic dependency relation: ", t.dep_)
-                #         claim_sent.append(t.text)
-                    
-                # if claim_sent: print("Claim sent: ", claim_sent)
+                        claim_triplet.extend([source, claim_verb, prop])
+                        # print("\nClaim triplet: ", claim_triplet)
 
             # breaks at 1000 sentences
             if v == 1000: 
@@ -197,7 +372,7 @@ def test_one_file():
         print(e)
         return 
     
-# tester for all files
+# tester for all files ------------------------------------------------------------------------------------
 def test_all_files(): 
     
     # possibly change and process all text at once
@@ -299,7 +474,13 @@ def test_all_files():
             return 
         
 def main():
-    test_one_file()
+    # test_one_file()
+    # test_approach_2()
+    # print_orgs()
+    # print_claim_orgs()
+    # print_source_to_claim()
+    # test_preprocess()
+    lets_see()
 
 if __name__ == "__main__": 
     main() 
