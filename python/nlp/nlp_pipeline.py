@@ -177,14 +177,9 @@ def source_to_claim(source):
     # iterate through all ancestors of the source token
     for a in source.ancestors: 
         # when you get to a claim verb
-        print("Ancestor: ", a.text)
+        # print("Ancestor: ", a.text)
         if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
-        # if a.pos_ == "VERB": # testing
-            # print("this is firing") # testing
-            # add verb to phrase list
-            # print("\nAdding verb: ", a.text)
-            # claim_phrase.append(a)
-            # print(claim_phrase)
+    
             claim_verb = a.lemma_
 
             # checks for adverb modifier that indicates degree of claim (not perfect)
@@ -194,13 +189,13 @@ def source_to_claim(source):
 
             if advmod: 
                 advmod = advmod.pop()
-                print(advmod.suffix_) # testing
+                # print(advmod.suffix_) # testing
                 # construct strength
                 advmod_string = advmod.text
 
                 # strength_phrase = advmod_string + " " + " ".join([j.text for j in advmod.children])
                 strength_phrase = advmod_string
-                print(strength_phrase, advmod.sentiment) # testing
+                # print(strength_phrase, advmod.sentiment) # testing
         
             # should we even consider this case???? (prep [...] noun)
             # if prep: 
@@ -216,8 +211,6 @@ def source_to_claim(source):
             # then also add the direct object(s) of that claim verb, 
             # as long as the original token is in the same subtree as 
             # the direct object
-            # (need to find a way to supercede non dobj dependencies and retrieve whole propositions?)
-            # claim_phrase.extend([j for j in a.children if j.dep_ == "dobj" and source in a.subtree])
 
         # if verb is root of sentence but not the claim verb
         # there will not be a claim verb in this instance
@@ -226,27 +219,15 @@ def source_to_claim(source):
             # claim_subtree = nsubj.text + " " + " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
             # claim_subtree = " ".join([j.text for j in a.sent[source.i + 1:]])
             claim_subtree = " ".join([j.text for j in a.sent if j.i > source.i and not j.is_punct])
-            print("Tracing: ", [j.text for j in a.sent])
-            print("All tokens after source: ", [j.text for j in a.sent if j.i > source.i and not j.is_punct])
-            print("Source: ", source.text) # testing
-            print("Root verb identified: ", a.text) # testing
-            print("Testing: ", claim_subtree) # testing
+            # print("Tracing: ", [j.text for j in a.sent])
+            # print("All tokens after source: ", [j.text for j in a.sent if j.i > source.i and not j.is_punct])
+            # print("Source: ", source.text) # testing
+            # print("Root verb identified: ", a.text) # testing
+            # print("Testing: ", claim_subtree) # testing
 
             break
-        
-        # now examine case involving governments 
-        # if ...
-        # print(list(a.doc.ents))
-
-        # break # not using this for now 
     
-    # expand out verb phrase to get modifiers of the direct object
-    # for tok in claim_phrase: 
-    #     for i in tok.children: 
-    #         if i.dep_ == "amod": 
-    #             claim_phrase.append(i)
              
-    # new_list = sorted(claim_phrase, key=lambda x: x.i)
     return claim_verb, claim_subtree, strength_phrase
 
 
@@ -269,8 +250,8 @@ def test_one_file(file=""):
     processed_sents_count = 0 # testing
     processed_sents = [] # testing
     for ent in doc.ents: 
-        print(ent.text, ent.label_) # testing
-        print(ent.root.text) # testing
+        # print(ent.text, ent.label_) # testing
+        # print(ent.root.text) # testing
         if ent.label_ in sources:
             claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
             if strength_phrase: strength_phrase_count += 1 # testing
@@ -282,7 +263,7 @@ def test_one_file(file=""):
                 explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
  
     pprint.pprint(explicit_claims)
-    pprint.pprint(processed_sents)
+    # pprint.pprint(processed_sents)
     print(f"Number of claims identified: {len(explicit_claims)}" )
 
 def test_all_files(): 
