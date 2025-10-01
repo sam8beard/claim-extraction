@@ -16,6 +16,7 @@ from utils.pull_text import preprocess_text
 # load model
 nlp = spacy.load("en_core_web_trf")
 
+
 # --------------------------------------------------------------------------
 # possible claim structures: 
 # [SOURCE] [CLAIM_STRENGTH] [CLAIM_VERB] [claim being made]
@@ -125,18 +126,43 @@ def source_to_claim(source):
     claim_phrase = []
     claim_verb = ""
     claim_subtree = ""
+    strength_phrase = ""
     # iterate through all ancestors of the source token
     for a in source.ancestors: 
         # when you get to a claim verb
-        if a.lemma_ in claim_verb_terms: 
+        if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
             # add verb to phrase list
             # print("\nAdding verb: ", a.text)
             claim_phrase.append(a)
             # print(claim_phrase)
             claim_verb = a.lemma_
 
+            # check for adverb modifier on claim verb (should only be one)
+            # advmod = [j for j in a.children if j.dep_ == "advmod" and j.suffix_ == "-ly"]
+
+            # checks for adverb modifier that indicates degree of claim (not perfect)
+            advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_]
+            
+            prep = [j for j in a.children if j.dep_ == "prep"]
+
+            if advmod: 
+                advmod = advmod.pop()
+                print(advmod.suffix_)
+                # construct strength
+                advmod_string = advmod.text
+
+                # strength_phrase = advmod_string + " " + " ".join([j.text for j in advmod.children])
+                strength_phrase = advmod_string
+                print(strength_phrase, advmod.sentiment)
+
+            # should we even consider this case???? (prep [...] noun)
+            # if prep: 
+            #     prep = prep.pop()
+            #     strength_phrase = " ".join([j.text for j in prep.subtree if j.i > prep.i and j.pos_ != "PROPN"])
+            #     print(strength_phrase)
+
             # all descendants to the right of the root/claim verb that 
-            claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i])
+            claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
             
             # then also add the direct object(s) of that claim verb, 
             # as long as the original token is in the same subtree as 
@@ -150,7 +176,7 @@ def source_to_claim(source):
             # stop after the first verb
             # print("Verb children:" , list(a.children))
             # print("Right children of verb: ", [t.text for t in ])
-
+        
             break
     
     # expand out verb phrase to get modifiers of the direct object
@@ -172,7 +198,7 @@ def source_to_claim(source):
     # sort tokens by position in original sentence
     # print(claim_phrase)
     new_list = sorted(claim_phrase, key=lambda x: x.i)
-    return ''.join([i.text_with_ws for i in new_list]).strip(), claim_verb, claim_subtree
+    return ''.join([i.text_with_ws for i in new_list]).strip(), claim_verb, claim_subtree, strength_phrase
 
 
 
@@ -186,11 +212,12 @@ def print_source_to_claim():
     claims = []
     relations = dict()
     explicit_claims = []
+    sources = ["ORG", "PERSON", "GPE"]
     for ent in doc.ents: 
-        if ent.label_ == "ORG": 
-            relations[ent.text], claim_verb, claim_subtree = source_to_claim(ent.root)
+        if ent.label_ in sources:
+            relations[ent.text], claim_verb, claim_subtree, strength_phrase = source_to_claim(ent.root)
             if claim_verb and claim_subtree:
-                explicit_claims.append((ent.text, claim_verb, claim_subtree))
+                explicit_claims.append((ent.text, claim_verb, claim_subtree, strength_phrase))
             # claims.append(source_to_claim(ent.root))
     # for token in doc: 
     #     if token.ent_type_ == "ORG": 
@@ -205,19 +232,29 @@ def print_source_to_claim():
     pprint.pprint(explicit_claims)
     # print(relations)
 
-def see_relations(doc): 
+def see_relations(text):
+    doc = nlp(text)
     displacy.serve(doc, style="dep", auto_select_port=True)
 
 def lets_see(): 
     for i, doc in enumerate(nlp.pipe(pull_all_files())):
+
+    # doc = nlp("The UK with great strength suggests sanctions on AI."
+    # doc = nlp("The UK relunctantly and with great hesitation suggest sanctions on AI.")
+    # doc = nlp(text)
+    # doc = nlp(pull_one_file())
         claims = []
         relations = dict()
         explicit_claims = []
+        sources = ["ORG", "PERSON", "GPE"]
+        strength_phrase_count = 0 # testing
         for ent in doc.ents: 
-            if ent.label_ == "ORG": 
-                relations[ent.text], claim_verb, claim_subtree = source_to_claim(ent.root)
-                if claim_verb and claim_subtree:
-                    explicit_claims.append((ent.text, claim_verb, claim_subtree))
+            if ent.label_ in sources: 
+                relations[ent.text], claim_verb, claim_subtree, strength_phrase = source_to_claim(ent.root)
+                if strength_phrase: strength_phrase_count += 1 # testing 
+                if claim_verb and claim_subtree :
+                    explicit_claims.append((ent.text, claim_verb, claim_subtree, strength_phrase))
+        print("Strength phrase count: ", strength_phrase_count)
         pprint.pprint(explicit_claims)
 
 # tester for one file ------------------------------------------------------------------------------------
@@ -480,7 +517,11 @@ def main():
     # print_claim_orgs()
     # print_source_to_claim()
     # test_preprocess()
+    # lets_see()
+    # see_relations("The UK strongly and willingly suggests sanctions on AI.")
     lets_see()
+    # see_relations("Miller however suggests that the user should be cautious with AI.")
+    # see_relations("The UK relunctantly and with great hesitation suggests sanctions on AI.")
 
 if __name__ == "__main__": 
     main() 
