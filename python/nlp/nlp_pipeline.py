@@ -54,7 +54,7 @@ claim_verb_terms = [
         "affirm", "demonstrate", "establish", "prove", "show", "validate", "substantiate", "confirm", "illustrate",
         "justify", "interpret", "evaluate", "analyze", "examine", "assess", "deduce", "infer", "theorize", "posit",
         "hypothesize", "advocate", "recommend", "encourage", "urge", "emphasize", "call for", "champion", "challenge",
-        "dispute", "question", "refute", "counter", "reject", "critique", "oppose", "problematize"
+        "dispute", "question", "refute", "counter", "reject", "critique", "oppose", "problematize", "believe"
     ]
 tech_terms = [
         "Machine Learning",
@@ -84,6 +84,60 @@ Harvard scholars argue that AI systems must be held accountable for their decisi
 
 The AI Ethics Lab suggests that scenario analysis can help anticipate potential risks. Some legal experts argue that AI-generated content should be clearly labeled. The Global Partnership on Artificial Intelligence (GPAI) recommends sharing best practices for AI safety across borders. The Stanford Human-Centered AI initiative claims that participatory design can reduce ethical risks in AI products. The Oxford Internet Institute maintains that public awareness campaigns are needed to educate users about AI safety. The Center for Security and Emerging Technology (CSET) asserts that national security strategies must account for AI vulnerabilities. The Carnegie Mellon University Robotics Institute demonstrates that simulation-based testing can uncover hidden flaws in AI systems.
 """
+
+longtext = (
+    "The report by the UN argues that climate change is accelerating.\n"
+    "According to John Smith, AI will revolutionize energy production by 2030.\n"
+    "Google clearly believes its new algorithm improves search accuracy.\n"
+    "The French government states that renewable energy will be the primary power source.\n"
+    "Researchers claim that AI-generated art could replace traditional methods entirely.\n"
+    "The World Health Organization warns that antibiotic resistance is a growing threat.\n"
+    "Elena Torres argues that economic reform will reduce inequality.\n"
+    "Experts suggest that this policy will likely improve public safety.\n"
+    "Tesla claims its new battery design is more efficient than competitors.\n"
+    "The US Department of Energy insists that fusion power will soon be viable.\n"
+    "According to the BBC, global food shortages will increase in the next decade.\n"
+    "Microsoft believes its latest cloud technology enhances data security.\n"
+    "The European Union claims that new regulations will reduce carbon emissions.\n"
+    "Dr. Amanda Lee argues that mental health awareness will improve community wellbeing.\n"
+    "The World Bank insists that infrastructure investment will boost economic growth.\n"
+    "Greenpeace warns that deforestation rates are dangerously high.\n"
+    "Harvard researchers claim that sleep quality affects cognitive performance significantly.\n"
+    "The Japanese government states that electric vehicles will dominate the market by 2040.\n"
+    "According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.\n"
+    "Facebook argues that its new privacy features improve user trust.\n"
+    "NASA reports that asteroid mining could become feasible within 50 years.\n"
+    "According to Reuters, interest rates will likely rise next year.\n"
+    "The CDC insists that vaccination campaigns reduce disease outbreaks.\n"
+    "According to CNN, climate migration will increase in the coming years.\n"
+    "The IMF claims that debt restructuring will stabilize developing economies.\n"
+    "Dr. Sarah Patel argues that renewable energy can meet global demand by 2050.\n"
+    "Apple claims its new chip design improves efficiency dramatically.\n"
+    "The WHO warns that antibiotic misuse is accelerating resistance.\n"
+    "According to Bloomberg, quantum computing will transform finance.\n"
+    "The German government states that hydrogen energy will play a key role in decarbonization.\n"
+    "According to the New York Times, AI bias remains a major challenge.\n"
+    "Amazon believes its logistics improvements will cut delivery times.\n"
+    "The UNDP insists that education access reduces poverty.\n"
+    "Dr. Miguel Alvarez claims that urban green spaces improve mental health.\n"
+    "According to Al Jazeera, global water shortages will worsen.\n"
+    "The World Economic Forum states that automation will reshape labor markets.\n"
+    "According to Wired, cybersecurity threats will evolve rapidly.\n"
+    "The Chinese government claims that its space program will achieve a moon base.\n"
+    "Dr. Emily Chen argues that AI-driven healthcare can improve diagnosis accuracy.\n"
+    "The International Energy Agency warns that fossil fuel dependence persists.\n"
+    "According to Fox News, renewable energy adoption will accelerate.\n"
+    "The UK government insists that AI regulation will improve innovation.\n"
+    "According to NPR, social media influences public opinion strongly.\n"
+    "The Canadian government claims that clean technology will create jobs.\n"
+    "Dr. Mark Reynolds argues that AI literacy is essential for future workforces.\n"
+    "According to The Guardian, climate resilience is key to sustainable development.\n"
+    "The World Food Programme warns that hunger crises are worsening globally.\n"
+    "According to Financial Times, global trade patterns are shifting.\n"
+    "The Brazilian government insists that conservation efforts will protect biodiversity.\n"
+    "According to Vox, misinformation spreads faster than truth.\n"
+    "The African Union claims that regional cooperation will strengthen economies.\n"
+)
 # testing alternative approach ----------------------------------------------------------------------
 
 # for regex testing
@@ -123,7 +177,10 @@ def source_to_claim(source):
     # iterate through all ancestors of the source token
     for a in source.ancestors: 
         # when you get to a claim verb
+        print("Ancestor: ", a.text)
         if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
+        # if a.pos_ == "VERB": # testing
+            # print("this is firing") # testing
             # add verb to phrase list
             # print("\nAdding verb: ", a.text)
             # claim_phrase.append(a)
@@ -137,14 +194,14 @@ def source_to_claim(source):
 
             if advmod: 
                 advmod = advmod.pop()
-                print(advmod.suffix_)
+                print(advmod.suffix_) # testing
                 # construct strength
                 advmod_string = advmod.text
 
                 # strength_phrase = advmod_string + " " + " ".join([j.text for j in advmod.children])
                 strength_phrase = advmod_string
-                print(strength_phrase, advmod.sentiment)
-
+                print(strength_phrase, advmod.sentiment) # testing
+        
             # should we even consider this case???? (prep [...] noun)
             # if prep: 
             #     prep = prep.pop()
@@ -155,13 +212,33 @@ def source_to_claim(source):
             # Maybe modify to get multiple claims within one sentence? 
             claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
             
+            break
             # then also add the direct object(s) of that claim verb, 
             # as long as the original token is in the same subtree as 
             # the direct object
             # (need to find a way to supercede non dobj dependencies and retrieve whole propositions?)
             # claim_phrase.extend([j for j in a.children if j.dep_ == "dobj" and source in a.subtree])
-        
+
+        # if verb is root of sentence but not the claim verb
+        # there will not be a claim verb in this instance
+        elif a.sent.root == a and a.pos_ == "VERB" and a.lemma_ not in claim_verb_terms: 
+            # nsubj = [j for j in a.children if j.dep_ == "nsubj"].pop()
+            # claim_subtree = nsubj.text + " " + " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
+            # claim_subtree = " ".join([j.text for j in a.sent[source.i + 1:]])
+            claim_subtree = " ".join([j.text for j in a.sent if j.i > source.i and not j.is_punct])
+            print("Tracing: ", [j.text for j in a.sent])
+            print("All tokens after source: ", [j.text for j in a.sent if j.i > source.i and not j.is_punct])
+            print("Source: ", source.text) # testing
+            print("Root verb identified: ", a.text) # testing
+            print("Testing: ", claim_subtree) # testing
+
             break
+        
+        # now examine case involving governments 
+        # if ...
+        # print(list(a.doc.ents))
+
+        # break # not using this for now 
     
     # expand out verb phrase to get modifiers of the direct object
     # for tok in claim_phrase: 
@@ -182,22 +259,31 @@ def test_one_file(file=""):
 
     # if file not supplied
     if not file: file = preprocess_text(pull_one_file())
+    # print(file)
     doc = nlp(file)
     claims = []
     relations = dict()
     explicit_claims = []
-    sources = ["ORG", "PERSON", "GPE"]
+    sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
+    strength_phrase_count = 0 # testing
+    processed_sents_count = 0 # testing
+    processed_sents = [] # testing
     for ent in doc.ents: 
+        print(ent.text, ent.label_) # testing
+        print(ent.root.text) # testing
         if ent.label_ in sources:
             claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
-            if claim_verb and claim_contents:
+            if strength_phrase: strength_phrase_count += 1 # testing
+            if claim_contents:
+                processed_sents_count += 1 # testing
+                processed_sents.append(ent.root.sent.text) # testing
+                # print(f"\nProcessed sentence {processed_sents_count}: {ent.root.sent.text}") # testing 
+                # print(ent.text)
                 explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
  
     pprint.pprint(explicit_claims)
-
-def see_relations(text):
-    doc = nlp(text)
-    displacy.serve(doc, style="dep", auto_select_port=True)
+    pprint.pprint(processed_sents)
+    print(f"Number of claims identified: {len(explicit_claims)}" )
 
 def test_all_files(): 
     for i, doc in enumerate(nlp.pipe(pull_all_files())):
@@ -205,16 +291,25 @@ def test_all_files():
         claims = []
         relations = dict()
         explicit_claims = []
-        sources = ["ORG", "PERSON", "GPE"]
+        sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
         strength_phrase_count = 0 # testing
+        processed_sents_count = 0 # testing
+        processed_sents = [] # testing
         for ent in doc.ents: 
             if ent.label_ in sources: 
                 claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
                 if strength_phrase: strength_phrase_count += 1 # testing 
-                if claim_verb and claim_contents :
+                if claim_contents :
+                    processed_sents_count += 1 # testing
+                    processed_sents.append(ent.root.sent.text)
                     explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
-        print("Strength phrase count: ", strength_phrase_count)
+        print("Strength phrase count: ", strength_phrase_count) # testing
         pprint.pprint(explicit_claims)
+        pprint.pprint(processed_sents)
+        
+def see_relations(text):
+    doc = nlp(text)
+    displacy.serve(doc, style="dep", auto_select_port=True)
 
 def main():
     # ------------------------------------------------------------------------------------------------
@@ -238,8 +333,15 @@ def main():
     # see_relations("Miller however suggests that the user should be cautious with AI.")
     # see_relations("The UK relunctantly and with great hesitation suggests sanctions on AI.")
     # see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
-    test_one_file("The UK states that it is reluctant with AI and it also claims that it is destructive")
-    test_one_file("The UK states that it is reluctant with AI. It also claims that it is destructive")
-    see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
+    # test_one_file("The UK states that it is reluctant with AI and it also claims that it is destructive")
+    # test_one_file("The UK states that it is reluctant with AI. It also claims that it is destructive")
+    # see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
+    test_one_file(longtext)
+    
+    # see_relations("According to John Smith, AI will revolutionize energy production by 2030.")
+    # see_relations("According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
+    # test_one_file("In an article from CNN, it was stated that AI is great. CNN reported that AI is not good. According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
+    # see_relations("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
+    # test_one_file("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
 if __name__ == "__main__": 
     main() 
