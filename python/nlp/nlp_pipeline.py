@@ -12,6 +12,11 @@ from spacy.util import filter_spans
 from utils.pull_text import pull_all_files
 from utils.pull_text import pull_one_file
 from utils.pull_text import preprocess_text
+from spacy.language import Language, Doc
+import logging 
+import sys 
+
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
 # load model
 nlp = spacy.load("en_core_web_trf")
@@ -54,7 +59,7 @@ claim_verb_terms = [
         "affirm", "demonstrate", "establish", "prove", "show", "validate", "substantiate", "confirm", "illustrate",
         "justify", "interpret", "evaluate", "analyze", "examine", "assess", "deduce", "infer", "theorize", "posit",
         "hypothesize", "advocate", "recommend", "encourage", "urge", "emphasize", "call for", "champion", "challenge",
-        "dispute", "question", "refute", "counter", "reject", "critique", "oppose", "problematize", "believe"
+        "dispute", "question", "refute", "counter", "reject", "critique", "oppose", "problematize", "believe", "warn"
     ]
 tech_terms = [
         "Machine Learning",
@@ -138,35 +143,186 @@ longtext = (
     "According to Vox, misinformation spreads faster than truth.\n"
     "The African Union claims that regional cooperation will strengthen economies.\n"
 )
+
+target_sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
 # testing alternative approach ----------------------------------------------------------------------
 
-# for regex testing
-# def join_words_with_pipe(strings):
-#     return "|".join(" ".join(s.split()) for s in strings)
+# initialize test doc
+def initialize_doc(file="") -> Doc: 
+    if not file: file = preprocess_text(pull_one_file())
+    doc = nlp(file)
 
-# def print_orgs(): 
-#     doc = nlp(pull_one_file())
-#     orgs = [ent.text for ent in doc.ents if ent.label_=="ORG"]
-#     print(*orgs, sep='\n')
+    return doc
 
-# def print_claim_orgs(): 
-#     # processed = pull_one_file().replace()
-#     doc = nlp(pull_one_file())
-#     pattern = join_words_with_pipe(claim_verb_terms)
-#     claim_orgs = set()
-#     claim_sents = set()
-#     for ent in doc.ents: 
-#         if ent.label_ != "ORG": 
-#             continue
-#         if re.search(pattern, ent.sent.text): 
-#             claim_orgs.add(ent.text)
-#             claim_sents.add(ent.sent.text)
-#     print(*claim_orgs, sep='\n')
-#     print(*claim_sents, sep='\n')
-#     # print("\nCLAIM ORGS ----------------------------------")
-#     # pprint.pprint(claim_orgs)
-#     # print("\nCLAIM SENTENCES -----------------------------")
-#     # pprint.pprint(claim_sents)
+
+
+def get_training_list(): 
+    train_data = [] # add tuples here
+    text = "" # add entire claim sentence here
+    annotations = [] # add offset tuples here
+
+
+    # doc = initialize_doc(longtext)
+    doc = initialize_doc(
+        'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+        'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+        'AI at all stages, with a focus on support for under-represented groups.'
+    )
+    # doc = initialize_doc()
+    
+    
+    # TESTING --------------------------
+
+    # source_span = get_source_span(doc, target_sources)
+    i = 0
+    
+    for ent in doc.ents:
+        
+        if ent.label_ in target_sources: 
+            source_span = ent.root.sent
+            tuples = get_tuples(source_span)
+            # issue with white parsing text, two strings are mixing together
+            # text = 
+            # pprint.pprint(tuples)
+            text = preprocess_text(ent.root.sent.text)
+            if tuples: 
+                i += 1
+                annotations = {"entities": tuples}
+                data = ((text, annotations))
+                train_data.append(data)
+    pprint.pprint(train_data)
+    print(i)
+    # need to get 
+
+    # ----------------------------------
+    # get sentence that contains claim 
+    
+    # get individual claim entities within that sentence 
+
+    # record offset of those entities within original sentence 
+
+    # store sentence and entities list in train_data
+
+
+# def debug_get_source(source): 
+    
+# get text of sentence that source is in
+# doc: original text, target_sources: the list of target ents
+def get_source(valid_sources):
+    try:  
+        # TODO: all vars are being reinitialized, not going to next source 
+        # source = None
+        # valid_sources = [source for source in doc.ents if source.label_ in target_sources]
+        logging.info(f"All valid sources: {valid_sources}")
+        logging.info(f"Length of valid sources: {len(valid_sources)}")
+        for source in valid_sources:
+            logging.info(f"\tSource currently being evaluated - Source: {source.text} | Label: {source.label_}")
+            # logging.info(f"\tSource: {source.text} | Label: {source.label_}")
+            logging.info(f"Type of source: {type(source)}")
+            yield source
+    except Exception as e: 
+        return e
+
+
+# TODO: There is a bug that occurs if two or more valid sources appear in the same sentence. 
+#       - Whats supposed to happen: 
+#           The list of ents in the sentence is iterated through 
+#               IF a source is valid, its supposed to be processed 
+#                   this involves iterating through its ancestors and looking for a claim verb
+#                   it grabs the first claim verb it finds in its ancestors and builds the rest of the tuple based off this
+#
+#       - What actually happens: 
+#           The list of ents in the sentence is iterated through
+#               if x valid sources exist, only the first valid source found is used to build x number of tuples
+# 
+#       - How to fix:
+#           Either 
+#               1. only keep unique tuples 
+#               2. find a way to construct x amount of tuples for x amount of valid sources 
+#                   - all other members will be the same (claim_verb, claim_content,etc.) but source will be different
+
+# okay so in another chat you were telling me how to use spacy to fine tune a spacy model using structured data. you were telling me how to structure the training data and you said it was defined as a list of (text, annotation) tuples 
+
+ 
+# get tuples from a target sentence
+# sentence: a span that contains the ent, sources: a list of target sources
+def get_tuples(span):
+    source_start, source_end = 0, 0
+    verb_start, verb_end = 0, 0
+    content_start, content_end = 0, 0
+    strength_start, strength_end = 0, 0
+    strength = ""
+    # source =  # testing
+    # NOTE: i think the issue lies in the span being reinitialized each time 
+    doc = initialize_doc(span.text)
+    
+    # SOMETHING HAPPENING WITH THIS LINE!!!!!!!!!!
+    # added return type for get_source
+    # valid_sources = [source for source in doc.ents if source.label_ in target_sources]
+    # logging.info(f"\t\tValid sources passed to get tuples: {valid_sources}")
+    # sources = get_source(valid_sources)
+    # sources = get_source(doc, target_sources)
+    # logging.info(f"Next: {next(sources)}")
+    logging.info(f"{doc.ents}")
+    logging.info(f"{doc.ents[0]}")
+    for source in doc.ents:
+    
+    # for source in sources:
+        # source = source(next)
+        # source = next(sources)
+    # source = get_source(doc, target_sources)
+        if source.label_ in target_sources: 
+            # logging.info(f"Source: {source.text}")
+            logging.info(f"Source: {source.text}")
+            source_start, source_end = source.start_char, source.end_char
+        
+            for a in source.root.ancestors: # testing ent -> source
+                if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
+                    verb = a
+                    logging.info(f"Verb: {verb.text}") 
+                    verb_start = verb.idx
+                    verb_end = verb.idx + len(verb.text)
+
+                    # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
+                    # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
+                    advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_ and j.i == a.i - 1]
+                
+                    # build strength modifier
+                    if advmod: 
+                        advmod = advmod.pop()
+                        strength = advmod
+                        strength_start = advmod.idx
+                        strength_end = advmod.idx + len(advmod.text)
+                        logging.info(f"Claim strength: {strength.text}")
+                        strength = advmod.text
+
+                    # get content span and offset
+                    content = [j.idx for j in a.subtree if j.i > a.i and not j.is_punct]
+                    content_start, content_end = content[0], content[-1]
+                    # Testing
+                    # print(span.text)
+                    # print(ent.text, [source_start, source_end])
+                    # print(verb.text, [verb_start, verb_end])
+                    # print(strength, [strength_start, strength_end])
+                    # # print([[i.text, i.idx] for i in content if i.idx])
+                    # print(content)
+                    if not verb and content: 
+                        return None
+                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
+                    testing_tuple = [source.text, verb.text, testing_content_text, strength]
+                    logging.info(f"Testing tuple contents: {testing_tuple}")
+                    # print(ent.root.sent.text)
+                    return [
+                        (source_start, source_end, "SOURCE"),
+                        (verb_start, verb_end, "CLAIM_VERB"),
+                        (content_start, content_end, "CLAIM_CONTENTS"),
+                        (strength_start, strength_end, "CLAIM_STRENGTH")
+                    ]
+                    
+                
+                
+                # break
+
 
 # a function that identifies claim verbs and direct objects that are grammatically linked to a source
 def source_to_claim(source):
@@ -177,70 +333,43 @@ def source_to_claim(source):
     # iterate through all ancestors of the source token
     for a in source.ancestors: 
         # when you get to a claim verb
-        # print("Ancestor: ", a.text)
         if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
-    
+            
+            # get claim verb
             claim_verb = a.lemma_
 
             # checks for adverb modifier that indicates degree of claim (not perfect)
             advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_]
             
+            # this does nothing right now 
             prep = [j for j in a.children if j.dep_ == "prep"]
 
+            # build strength modifier
             if advmod: 
                 advmod = advmod.pop()
-                # print(advmod.suffix_) # testing
-                # construct strength
-                advmod_string = advmod.text
-
-                # strength_phrase = advmod_string + " " + " ".join([j.text for j in advmod.children])
-                strength_phrase = advmod_string
-                # print(strength_phrase, advmod.sentiment) # testing
-        
-            # should we even consider this case???? (prep [...] noun)
-            # if prep: 
-            #     prep = prep.pop()
-            #     strength_phrase = " ".join([j.text for j in prep.subtree if j.i > prep.i and j.pos_ != "PROPN"])
-            #     print(strength_phrase)
-
+                strength_phrase = advmod.text
+    
             # all descendants to the right of the root/claim verb that 
             # Maybe modify to get multiple claims within one sentence? 
             claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
             
             break
-            # then also add the direct object(s) of that claim verb, 
-            # as long as the original token is in the same subtree as 
-            # the direct object
-
+            
         # if verb is root of sentence but not the claim verb
         # there will not be a claim verb in this instance
-        elif a.sent.root == a and a.pos_ == "VERB" and a.lemma_ not in claim_verb_terms: 
-            # nsubj = [j for j in a.children if j.dep_ == "nsubj"].pop()
-            # claim_subtree = nsubj.text + " " + " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
-            # claim_subtree = " ".join([j.text for j in a.sent[source.i + 1:]])
-            claim_subtree = " ".join([j.text for j in a.sent if j.i > source.i and not j.is_punct])
-            # print("Tracing: ", [j.text for j in a.sent])
-            # print("All tokens after source: ", [j.text for j in a.sent if j.i > source.i and not j.is_punct])
-            # print("Source: ", source.text) # testing
-            # print("Root verb identified: ", a.text) # testing
-            # print("Testing: ", claim_subtree) # testing
+        # Note: This step has been removed because it overfits to too many phrases
+        # elif a.sent.root == a and a.pos_ == "VERB" and a.lemma_ not in claim_verb_terms: 
+           
+        #     claim_subtree = " ".join([j.text for j in a.sent if j.i > source.i and not j.is_punct])
 
-            break
+        #     break
     
-             
     return claim_verb, claim_subtree, strength_phrase
-
-
-
-def test_preprocess(): 
-    print(preprocess_text(pull_one_file()))
-    # print(preprocess_text(text))
 
 def test_one_file(file=""): 
 
     # if file not supplied
     if not file: file = preprocess_text(pull_one_file())
-    # print(file)
     doc = nlp(file)
     claims = []
     relations = dict()
@@ -263,7 +392,6 @@ def test_one_file(file=""):
                 explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
  
     pprint.pprint(explicit_claims)
-    # pprint.pprint(processed_sents)
     print(f"Number of claims identified: {len(explicit_claims)}" )
 
 def test_all_files(): 
@@ -292,6 +420,7 @@ def see_relations(text):
     doc = nlp(text)
     displacy.serve(doc, style="dep", auto_select_port=True)
 
+
 def main():
     # ------------------------------------------------------------------------------------------------
     # Where we're at: 
@@ -317,8 +446,11 @@ def main():
     # test_one_file("The UK states that it is reluctant with AI and it also claims that it is destructive")
     # test_one_file("The UK states that it is reluctant with AI. It also claims that it is destructive")
     # see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
-    test_one_file(longtext)
-    
+    # test_one_file()
+    get_training_list()
+#     see_relations('Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+#   'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+#   'AI at all stages, with a focus on support for under-represented groups.')
     # see_relations("According to John Smith, AI will revolutionize energy production by 2030.")
     # see_relations("According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
     # test_one_file("In an article from CNN, it was stated that AI is great. CNN reported that AI is not good. According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
