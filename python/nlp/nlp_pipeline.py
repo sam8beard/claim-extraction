@@ -80,7 +80,7 @@ tech_terms = [
 # claim_strength = []
 
 
-text = """
+example_text = """
 OpenAI researchers argue that robust safety protocols are essential for advanced AI systems. The European Commission has proposed regulations to ensure ethical AI development. Google maintains that transparency in AI decision-making is critical for public trust. Some experts claim that autonomous weapons powered by AI pose significant risks to global security. The Partnership on AI suggests that collaboration between industry and academia can improve AI safety standards. Microsoft asserts that bias mitigation in AI models should be a top priority. The Future of Life Institute warns that unchecked AI development could lead to unintended consequences. IBM demonstrates that explainable AI can help users understand complex model outputs. Stanford University researchers contend that ethical guidelines must evolve alongside AI capabilities. The Alan Turing Institute recommends regular audits of AI systems to detect and correct harmful behaviors.
 
 Meta affirms that user privacy must be protected in AI-driven platforms. The United Nations calls for international cooperation to address AI safety challenges. Some ethicists maintain that AI should never be used for mass surveillance. DeepMind illustrates that reinforcement learning agents can be aligned with human values through careful reward design. The Center for Humane Technology advocates for responsible AI deployment in social media. Tesla claims that self-driving cars require rigorous safety validation before widespread adoption. The AI Now Institute emphasizes the importance of public input in shaping AI policy. Researchers at MIT propose that AI ethics education should be integrated into computer science curricula. The World Economic Forum encourages governments to invest in AI safety research. Amazon suggests that fairness in AI-powered hiring tools is achievable with diverse training data.
@@ -154,48 +154,36 @@ def initialize_doc(file="") -> Doc:
 
     return doc
 
-# code vomit 
-# get_training_list
-# for every ent in original doc 
-# if the ent is valid and the sentence hasnt been seen -> # this avoids the same sentence being processed twice
-#   pass ent.sentence to be processed 
 
-# get_tuples
-# construct doc from sentence
-# for every ent in this sentence
-#   construct tuple 
 
 
 def get_training_list(): 
     train_data = [] # add tuples here
-    text = "" # add entire claim sentence here
+    final_text = "" # add entire claim sentence here
     annotations = [] # add offset tuples here
 
 
-    doc = initialize_doc(longtext)
-    # doc = initialize_doc(
-    #     'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
-    #     'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
-    #     'AI at all stages, with a focus on support for under-represented groups.'
-    # )
+    # doc = initialize_doc(example_text)
+    doc = initialize_doc(
+        'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+        'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+        'AI at all stages, with a focus on support for under-represented groups.'
+    )
     # doc = initialize_doc()
     
     
     # TESTING --------------------------
 
-    # source_span = get_source_span(doc, target_sources)
     i = 0
     seen_sents = []
     for ent in doc.ents:
         
-        
-        # logging.info(f"{seen_sents}")
-        if ent.label_ in target_sources: 
+        if ent.label_ in target_sources:
             source_span = ent.root.sent
+          
             if source_span not in seen_sents: 
                 seen_sents.append(source_span)
-                logging.info(f"BEFORE BEING PASSED:\n Entity: {ent.text} | Ent type: {ent.label_}")
-                logging.info(f"Ents in sentence: {ent.root.sent.ents}")
+               
 
                 # NOTE: reinitializing a doc with the new sentence changes the context the 
                 #       model uses to recognize entities 
@@ -205,31 +193,20 @@ def get_training_list():
                 #                 a new doc? 
                 #       The caveat with this is that we need the offsets of the entities 
                 #       in the ORIGINAL sentence, not the whole doc. 
-                source_doc = initialize_doc(source_span.text)
-                # tuples = get_tuples(source_doc)
-                for entry in get_tuples(source_doc): 
+             
+                for entry in get_tuples(source_span): 
                     
-            # else: 
-            #     source_doc = initialize_doc(source_span.text)
-            # # Testing 
-            # source_doc = initialize_doc(source_span.text)
-            # for ent in source_doc.ents: 
-            #     # construct singular tuple 
-            #     # return tuple 
-            # tuples = get_tuples(source_doc) # this might need to be a generator
-            # -----------
-            # tuples = get_tuples(source_span)
-            # issue with white parsing text, two strings are mixing together
-            # text = 
-            # pprint.pprint(tuples)
-                    text = preprocess_text(ent.root.sent.text)
+            
+                    final_text = preprocess_text(ent.root.sent.text)
                     if entry: 
                         i += 1
                         annotations = {"entities": entry}
-                        data = ((text, annotations))
+                        data = ((final_text, annotations))
                         train_data.append(data)
     pprint.pprint(train_data)
-    print(i)
+    logging.info(f"\n\nNumber of sentences: {len(list(doc.sents))}")
+    logging.info(f"\n\nNumber of sentences processed: {i}")
+    return train_data
     # need to get 
 
     # ----------------------------------
@@ -242,7 +219,6 @@ def get_training_list():
     # store sentence and entities list in train_data
 
 
-# def debug_get_source(source): 
     
 # get text of sentence that source is in
 # doc: original text, target_sources: the list of target ents
@@ -281,50 +257,54 @@ def get_source(valid_sources):
 
 # okay so in another chat you were telling me how to use spacy to fine tune a spacy model using structured data. you were telling me how to structure the training data and you said it was defined as a list of (text, annotation) tuples 
 
- 
+# get token offset from local sentence
+def get_new_token_offset(token, sent): 
+    rel_start = token.idx - sent.start_char
+    rel_end = rel_start + len(token.text)
+    return rel_start, rel_end
+
 # get tuples from a target sentence
 # sentence: a span that contains the ent, sources: a list of target sources
-def get_tuples(doc):
+def get_tuples(sent):
     source_start, source_end = 0, 0
     verb_start, verb_end = 0, 0
     content_start, content_end = 0, 0
     strength_start, strength_end = 0, 0
     strength = ""
-    # source =  # testing
-    # NOTE: i think the issue lies in the span being reinitialized each time 
-    # doc = initialize_doc(span.text)
     
-    # SOMETHING HAPPENING WITH THIS LINE!!!!!!!!!!
-    # added return type for get_source
-    # valid_sources = [source for source in doc.ents if source.label_ in target_sources]
-    # logging.info(f"\t\tValid sources passed to get tuples: {valid_sources}")
-    # sources = get_source(valid_sources)
-    # sources = get_source(doc, target_sources)
-    # logging.info(f"Next: {next(sources)}")
-    # logging.info(f"{doc.ents}")
-    # logging.info(f"{doc.ents[0]}")
-    # seen_ents = []
-    # for source in sent.ents: 
 
-    for source in doc.ents:
-        logging.info(f"Ents in sentence: {doc.ents}")
-        # seen_ents.append(source)
-    # for source in sources:
-        # source = source(next)
-        # source = next(sources)
-    # source = get_source(doc, target_sources)
+    for source in sent.ents: 
+
         if source.label_ in target_sources: 
-            # logging.info(f"Source: {source.text}")
-            logging.info(f"DURING PROCESSING:\nEntity: {source.text} | Entity type: {source.label_}")
             
-            source_start, source_end = source.start_char, source.end_char
-        
-            for a in source.root.ancestors: # testing ent -> source
+
+            # Testing
+
+            # new start of sentence offset # THESE WORK
+            sent_start = sent.end_char - sent.end_char 
+            sent_end = sent.end_char - sent.start_char
+
+
+            
+            # new start of entity offset # DONT WORK
+            ent_start = source.start_char - sent.start_char
+            ent_end = source.end_char - sent.start_char
+            source_start = ent_start
+            source_end = ent_end
+          
+            # NOTE: we have found a valid claim
+            for a in source.root.ancestors: 
                 if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
+                    logging.info(f"Sentence: {sent.text} | Length: {len(sent.text)}")
+                    logging.info(f"DEBUGGING:")
+                    
+                    logging.info(f"New Sent | Start: {sent_start} | End: {sent_end}")
+                    logging.info(f"New Ent | Start: {ent_start} | End: {ent_end}")
                     verb = a
-                    # logging.info(f"Verb: {verb.text}") 
-                    verb_start = verb.idx
-                    verb_end = verb.idx + len(verb.text)
+                  
+                    verb_start, verb_end = get_new_token_offset(verb, sent)
+                    logging.info(f"Verb start and end: {verb_start}, {verb_end}")
+
 
                     # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
                     # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
@@ -334,28 +314,20 @@ def get_tuples(doc):
                     if advmod: 
                         advmod = advmod.pop()
                         strength = advmod
-                        strength_start = advmod.idx
-                        strength_end = advmod.idx + len(advmod.text)
-                        # logging.info(f"Claim strength: {strength.text}")
+                        strength_start, strength_end = get_new_token_offset(strength, sent)
+                        logging.info(f"Claim strength: {strength.text}")
                         strength = advmod.text
 
                     # get content span and offset
-                    content = [j.idx for j in a.subtree if j.i > a.i and not j.is_punct]
-                    content_start, content_end = content[0], content[-1]
-                    # Testing
-                    # print(span.text)
-                    # print(ent.text, [source_start, source_end])
-                    # print(verb.text, [verb_start, verb_end])
-                    # print(strength, [strength_start, strength_end])
-                    # # print([[i.text, i.idx] for i in content if i.idx])
-                    # print(content)
+                    content = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
+                    content_start, content_end = content[0][0], content[-1][-1]
+                    logging.info(f"Content start and end: {content_start} | {content_end}\n\n\n")
+                    
                     if not verb and content: 
                         return None
                     testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
                     testing_tuple = [source.text, verb.text, testing_content_text, strength]
-                    # logging.info(f"Testing tuple contents: {testing_tuple}")
-                    # print(ent.root.sent.text)
-
+             
                     yield [
                         (source_start, source_end, "SOURCE"),
                         (verb_start, verb_end, "CLAIM_VERB"),
@@ -363,13 +335,9 @@ def get_tuples(doc):
                         (strength_start, strength_end, "CLAIM_STRENGTH")
                     ]
                     
-                
-                
-                # break
-
-
+            
 # a function that identifies claim verbs and direct objects that are grammatically linked to a source
-def source_to_claim(source):
+def source_to_claim(source): 
     claim_phrase = []
     claim_verb = ""
     claim_subtree = ""
