@@ -207,7 +207,6 @@ def get_training_list():
     logging.info(f"\n\nNumber of sentences: {len(list(doc.sents))}")
     logging.info(f"\n\nNumber of claims processed: {i}")
     return train_data
-    # need to get 
 
     # ----------------------------------
     # get sentence that contains claim 
