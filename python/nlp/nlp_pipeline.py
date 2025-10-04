@@ -205,7 +205,7 @@ def get_training_list():
                         train_data.append(data)
     pprint.pprint(train_data)
     logging.info(f"\n\nNumber of sentences: {len(list(doc.sents))}")
-    logging.info(f"\n\nNumber of sentences processed: {i}")
+    logging.info(f"\n\nNumber of claims processed: {i}")
     return train_data
     # need to get 
 
