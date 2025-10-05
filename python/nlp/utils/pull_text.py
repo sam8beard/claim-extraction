@@ -20,6 +20,7 @@ def pull_all_files():
         file_contents = file_object['Body'].read().decode('utf-8')
 
         # provide texts one at a time for streaming 
+        # yield preprocess_text(file_contents)
         yield preprocess_text(file_contents)
 
 # for faster testing
@@ -43,6 +44,15 @@ def preprocess_text(text):
     text = unicodedata.normalize("NFC", text)
     text = "".join(c for c in text if c.isprintable())
     text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"([\-=_])\1{2,}", "", text)
+    text = re.sub(r"[\x0c\x0b]", "", text)
     text = text.strip()
     return text 
-        
+
+# def preprocess_text(text_list): 
+#     for text in text_list: 
+#         text = unicodedata.normalize("NFC", text)
+#         text = "".join(c for c in text if c.isprintable())
+#         text = re.sub(r"\s+", " ", text)
+#         text = text.strip()
+#         yield text 

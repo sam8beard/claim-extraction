@@ -149,12 +149,42 @@ target_sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
 
 # initialize test doc
 def initialize_doc(file="") -> Doc: 
-    if not file: file = preprocess_text(pull_one_file())
+    if not file: file = pull_one_file()
     doc = nlp(file)
 
     return doc
 
+def initialize_all_docs(): 
+    for doc in nlp(pull_all_files()): 
+        yield doc
 
+#           W i l l i s 
+#         0 1 2 3 4 5 6 7 
+#Start=846              End=853
+#
+
+# length = 8
+# start = 0
+# end = 7
+# stripped text = W i l l i s
+#                 0 1 2 3 4 5
+#                 
+# offset =  8 - 7 = 1
+# new_start_char = 846 + 1 = 847
+# new_end_char = 847 + 5 = 852
+
+
+def trim_whitespace(span): 
+    text = span.text
+    stripped_text = text.strip()
+    offset = len(text) - len(text.lstrip())
+    right_offset = len(text) - len(text.rstrip())
+    new_start_char = span.start_char + offset
+    new_end_char = new_start_char + len(stripped_text) # testing
+    # logging.info(f"{span.end_char}")
+    # logging.info(f"{new_end_char}")
+
+    return span.doc.char_span(new_start_char, span.end_char)
 
 
 def get_training_list(): 
@@ -162,51 +192,65 @@ def get_training_list():
     final_text = "" # add entire claim sentence here
     annotations = [] # add offset tuples here
 
-
+    # doc = initialize_doc(data)
+    
     # doc = initialize_doc(example_text)
-    doc = initialize_doc(
-        'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
-        'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
-        'AI at all stages, with a focus on support for under-represented groups.'
-    )
+    # doc = initialize_doc(
+    #     'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+    #     'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+    #     'AI at all stages, with a focus on support for under-represented groups.'
+    # )
     # doc = initialize_doc()
-    
-    
-    # TESTING --------------------------
-
-    i = 0
+    claim_count = 0
+    sent_count = 0
     seen_sents = []
-    for ent in doc.ents:
+    for doc in nlp.pipe(pull_all_files()): 
+        sent_count += len(list(doc.sents))
         
-        if ent.label_ in target_sources:
-            source_span = ent.root.sent
-          
-            if source_span not in seen_sents: 
-                seen_sents.append(source_span)
-               
-
-                # NOTE: reinitializing a doc with the new sentence changes the context the 
-                #       model uses to recognize entities 
-                #       e.g. Before (The US Department of Energy) - one entity
-                #            After (The US), (Department of Energy) - two entities
-                #       Question: could we just pass the sentence instead of creating 
-                #                 a new doc? 
-                #       The caveat with this is that we need the offsets of the entities 
-                #       in the ORIGINAL sentence, not the whole doc. 
-             
-                for entry in get_tuples(source_span): 
-                    
+        for ent in doc.ents:
             
-                    final_text = preprocess_text(ent.root.sent.text)
-                    if entry: 
-                        i += 1
-                        annotations = {"entities": entry}
-                        data = ((final_text, annotations))
-                        train_data.append(data)
-    pprint.pprint(train_data)
-    logging.info(f"\n\nNumber of sentences: {len(list(doc.sents))}")
-    logging.info(f"\n\nNumber of claims processed: {i}")
+            if ent.label_ in target_sources:
+                source_span = ent.root.sent
+            
+                if source_span not in seen_sents: 
+                    seen_sents.append(source_span)
+
+                    # Testing
+                    # source_span = trim_whitespace(source_span)
+                    # logging.info(f"Sentence length before being passed: {len(source_span.text)}")
+                    # logging.info(f"Sent begin and end: {source_span.start_char}, {source_span.end_char}")
+                    # logging.info(f"Char at 0: {source_span.text[source_span.start_char - source_span.start_char]}")
+                    # NOTE: reinitializing a doc with the new sentence changes the context the 
+                    #       model uses to recognize entities 
+                    #       e.g. Before (The US Department of Energy) - one entity
+                    #            After (The US), (Department of Energy) - two entities
+                    #       Question: could we just pass the sentence instead of creating 
+                    #                 a new doc? 
+                    #       The caveat with this is that we need the offsets of the entities 
+                    #       in the ORIGINAL sentence, not the whole doc. 
+                    # test = doc.char_span(source_span.start_char, source_span.end_char)
+                    # logging.info(f"Test: {test.text}, {test.start_char}, {test.end_char}")
+                    
+                    for entry in get_tuples(source_span): 
+                        
+                    
+                       
+                        
+                        
+                        if entry: 
+                            final_text = preprocess_text(source_span.text)
+
+                            
+                            claim_count += 1
+                            annotations = {"entities": entry}
+                            data = ((final_text, annotations))
+                            train_data.append(data)
+        # pprint.pprint(train_data)
+    # logging.info(f"\n\nNumber of sentences: {sent_count}")
+    # logging.info(f"\n\nNumber of claims processed: {claim_count}")
     return train_data
+    
+# def trim_ent_span(text, start, end): 
 
     # ----------------------------------
     # get sentence that contains claim 
@@ -294,15 +338,15 @@ def get_tuples(sent):
             # NOTE: we have found a valid claim
             for a in source.root.ancestors: 
                 if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
-                    logging.info(f"Sentence: {sent.text} | Length: {len(sent.text)}")
-                    logging.info(f"DEBUGGING:")
+                    # logging.info(f"Sentence: {sent.text} | Length: {len(sent.text)}")
+                    # logging.info(f"DEBUGGING:")
                     
-                    logging.info(f"New Sent | Start: {sent_start} | End: {sent_end}")
-                    logging.info(f"New Ent | Start: {ent_start} | End: {ent_end}")
+                    # logging.info(f"New Sent | Start: {sent_start} | End: {sent_end}")
+                    # logging.info(f"New Ent | Start: {ent_start} | End: {ent_end}")
                     verb = a
                   
                     verb_start, verb_end = get_new_token_offset(verb, sent)
-                    logging.info(f"Verb start and end: {verb_start}, {verb_end}")
+                    # logging.info(f"Verb start and end: {verb_start}, {verb_end}")
 
 
                     # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
@@ -314,27 +358,67 @@ def get_tuples(sent):
                         advmod = advmod.pop()
                         strength = advmod
                         strength_start, strength_end = get_new_token_offset(strength, sent)
-                        logging.info(f"Claim strength: {strength.text}")
+                        # logging.info(f"Claim strength: {strength.text}")
                         strength = advmod.text
 
-                    # get content span and offset
-                    content = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
-                    content_start, content_end = content[0][0], content[-1][-1]
-                    logging.info(f"Content start and end: {content_start} | {content_end}\n\n\n")
-                    
-                    if not verb and content: 
-                        return None
-                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
+                        # get content span and offset with strength included
+                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and j.i > advmod.i and not j.is_punct]
+                    else: 
+                        # get content span and offset
+                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
+                        # logging.info(f"TESTING: {list([j for j in a.subtree if j.i > a.i])}")
+                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
+                    # logging.info(f"Subtree: {list(a.head.subtree)}")
+                    # logging.info(f"Content: {testing_content_text}, Offsets: {content_offsets}")
                     testing_tuple = [source.text, verb.text, testing_content_text, strength]
-             
-                    yield [
-                        (source_start, source_end, "SOURCE"),
-                        (verb_start, verb_end, "CLAIM_VERB"),
-                        (content_start, content_end, "CLAIM_CONTENTS"),
-                        (strength_start, strength_end, "CLAIM_STRENGTH")
-                    ]
+                    # logging.info(f"{testing_tuple}")
+                    # logging.info(f"{len(content_offsets)}")
+                    if len(content_offsets) >= 2: 
+                        content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
+                        
+                        overlaps = [flag for flag in list((
+                                    (overlap(source_start, source_end, content_start, content_end)), 
+                                    (overlap(content_start, content_end, verb_start, verb_end))))
+                                    if flag == True]
+                        
+                        if not overlaps: 
+                        
+                            # logging.info(f"This is firing pt 2")
+                        
+                            # logging.info(f"This is firing")
+                            new_sent = sent.text
+                            # logging.info(f"Content start and end: {content_start} | {content_end}\n\n\n")
+                            # TODO: NOT ALL OFFSETS ARE LINING UP
+                            # logging.info(f"Sentence: {new_sent}")
+                            # logging.info(f"Length: {len(new_sent)}")
+                            # logging.info(f"")
+                            # logging.info(f"Start offsets: {source_start}, {verb_start}, {content_start}")
+                            starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
+                            # logging.info(f"Starts: {starts}")
+                            # logging.info(f"End offsets: {source_end}, {verb_end}, {content_end}")
+                            # logging.info(f"{new_sent[source_end]}")
+                            # logging.info(f"{new_sent[verb_end]}")
+                            # logging.info()
+                            ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                            # logging.info(f"Ends: {ends}")
+                            if strength: 
+                                
+                                yield [
+                                    (source_start, source_end, "SOURCE"),
+                                    (verb_start, verb_end, "CLAIM_VERB"),
+                                    (content_start, content_end, "CLAIM_CONTENTS"),
+                                    (strength_start, strength_end, "CLAIM_STRENGTH")
+                                ]
+                            else: 
+                                yield [
+                                    (source_start, source_end, "SOURCE"),
+                                    (verb_start, verb_end, "CLAIM_VERB"),
+                                    (content_start, content_end, "CLAIM_CONTENTS"),
+                                ]
                     
-            
+def overlap(start1, end1, start2, end2): 
+    return end1 >= start2 and end2 >= start1
+
 # a function that identifies claim verbs and direct objects that are grammatically linked to a source
 def source_to_claim(source): 
     claim_phrase = []
@@ -459,6 +543,9 @@ def main():
     # see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
     # test_one_file()
     get_training_list()
+    # see_relations("""Google’s translate system can suffer from gender bias by making sentences taken from the
+    #                 U.S. Bureau of Labor Statistics into a dozen languages that are gender neutral, including Yoruba,
+    #                 Hungarian, and Chinese, translating them into English, and showing that Google Translate shows favoritism toward males for stereotypical fields such as STEM jobs.""")
 #     see_relations('Several initiatives – such as AI4All and the AI Now Institute – explicitly '
 #   'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
 #   'AI at all stages, with a focus on support for under-represented groups.')
