@@ -158,33 +158,14 @@ def initialize_all_docs():
     for doc in nlp(pull_all_files()): 
         yield doc
 
-#           W i l l i s 
-#         0 1 2 3 4 5 6 7 
-#Start=846              End=853
-#
-
-# length = 8
-# start = 0
-# end = 7
-# stripped text = W i l l i s
-#                 0 1 2 3 4 5
-#                 
-# offset =  8 - 7 = 1
-# new_start_char = 846 + 1 = 847
-# new_end_char = 847 + 5 = 852
-
-
-def trim_whitespace(span): 
-    text = span.text
-    stripped_text = text.strip()
-    offset = len(text) - len(text.lstrip())
-    right_offset = len(text) - len(text.rstrip())
-    new_start_char = span.start_char + offset
-    new_end_char = new_start_char + len(stripped_text) # testing
-    # logging.info(f"{span.end_char}")
-    # logging.info(f"{new_end_char}")
-
-    return span.doc.char_span(new_start_char, span.end_char)
+# def trim_whitespace(span): 
+#     text = span.text
+#     stripped_text = text.strip()
+#     offset = len(text) - len(text.lstrip())
+#     right_offset = len(text) - len(text.rstrip())
+#     new_start_char = span.start_char + offset
+#     new_end_char = new_start_char + len(stripped_text) # testing
+#     return span.doc.char_span(new_start_char, span.end_char)
 
 
 def get_training_list(): 
@@ -215,96 +196,25 @@ def get_training_list():
                 if source_span not in seen_sents: 
                     seen_sents.append(source_span)
 
-                    # Testing
-                    # source_span = trim_whitespace(source_span)
-                    # logging.info(f"Sentence length before being passed: {len(source_span.text)}")
-                    # logging.info(f"Sent begin and end: {source_span.start_char}, {source_span.end_char}")
-                    # logging.info(f"Char at 0: {source_span.text[source_span.start_char - source_span.start_char]}")
-                    # NOTE: reinitializing a doc with the new sentence changes the context the 
-                    #       model uses to recognize entities 
-                    #       e.g. Before (The US Department of Energy) - one entity
-                    #            After (The US), (Department of Energy) - two entities
-                    #       Question: could we just pass the sentence instead of creating 
-                    #                 a new doc? 
-                    #       The caveat with this is that we need the offsets of the entities 
-                    #       in the ORIGINAL sentence, not the whole doc. 
-                    # test = doc.char_span(source_span.start_char, source_span.end_char)
-                    # logging.info(f"Test: {test.text}, {test.start_char}, {test.end_char}")
+                    
                     
                     for entry in get_tuples(source_span): 
                         
-                    
-                       
-                        
-                        
                         if entry: 
                             final_text = preprocess_text(source_span.text)
-
-                            
                             claim_count += 1
                             annotations = {"entities": entry}
                             data = ((final_text, annotations))
                             train_data.append(data)
-        # pprint.pprint(train_data)
-    # logging.info(f"\n\nNumber of sentences: {sent_count}")
-    # logging.info(f"\n\nNumber of claims processed: {claim_count}")
     return train_data
     
-# def trim_ent_span(text, start, end): 
-
-    # ----------------------------------
-    # get sentence that contains claim 
-    
-    # get individual claim entities within that sentence 
-
-    # record offset of those entities within original sentence 
-
-    # store sentence and entities list in train_data
-
-
-    
-# get text of sentence that source is in
-# doc: original text, target_sources: the list of target ents
-def get_source(valid_sources):
-    try:  
-        # TODO: all vars are being reinitialized, not going to next source 
-        # source = None
-        # valid_sources = [source for source in doc.ents if source.label_ in target_sources]
-        logging.info(f"All valid sources: {valid_sources}")
-        logging.info(f"Length of valid sources: {len(valid_sources)}")
-        for source in valid_sources:
-            logging.info(f"\tSource currently being evaluated - Source: {source.text} | Label: {source.label_}")
-            # logging.info(f"\tSource: {source.text} | Label: {source.label_}")
-            logging.info(f"Type of source: {type(source)}")
-            yield source
-    except Exception as e: 
-        return e
-
-
-# TODO: There is a bug that occurs if two or more valid sources appear in the same sentence. 
-#       - Whats supposed to happen: 
-#           The list of ents in the sentence is iterated through 
-#               IF a source is valid, its supposed to be processed 
-#                   this involves iterating through its ancestors and looking for a claim verb
-#                   it grabs the first claim verb it finds in its ancestors and builds the rest of the tuple based off this
-#
-#       - What actually happens: 
-#           The list of ents in the sentence is iterated through
-#               if x valid sources exist, only the first valid source found is used to build x number of tuples
-# 
-#       - How to fix:
-#           Either 
-#               1. only keep unique tuples 
-#               2. find a way to construct x amount of tuples for x amount of valid sources 
-#                   - all other members will be the same (claim_verb, claim_content,etc.) but source will be different
-
-# okay so in another chat you were telling me how to use spacy to fine tune a spacy model using structured data. you were telling me how to structure the training data and you said it was defined as a list of (text, annotation) tuples 
 
 # get token offset from local sentence
 def get_new_token_offset(token, sent): 
     rel_start = token.idx - sent.start_char
     rel_end = rel_start + len(token.text)
     return rel_start, rel_end
+
 
 # get tuples from a target sentence
 # sentence: a span that contains the ent, sources: a list of target sources
@@ -320,34 +230,24 @@ def get_tuples(sent):
 
         if source.label_ in target_sources: 
             
-
-            # Testing
-
-            # new start of sentence offset # THESE WORK
+            # NOTE: dont think i need these
+            # new start of sentence offset 
             sent_start = sent.end_char - sent.end_char 
             sent_end = sent.end_char - sent.start_char
 
-
-            
-            # new start of entity offset # DONT WORK
-            ent_start = source.start_char - sent.start_char
-            ent_end = source.end_char - sent.start_char
-            source_start = ent_start
-            source_end = ent_end
+            # new start of entity offset 
+            source_start = source.start_char - sent.start_char
+            source_end = source.end_char - sent.start_char
+            # source_start = ent_start
+            # source_end = ent_end
           
             # NOTE: we have found a valid claim
             for a in source.root.ancestors: 
                 if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
-                    # logging.info(f"Sentence: {sent.text} | Length: {len(sent.text)}")
-                    # logging.info(f"DEBUGGING:")
                     
-                    # logging.info(f"New Sent | Start: {sent_start} | End: {sent_end}")
-                    # logging.info(f"New Ent | Start: {ent_start} | End: {ent_end}")
                     verb = a
                   
                     verb_start, verb_end = get_new_token_offset(verb, sent)
-                    # logging.info(f"Verb start and end: {verb_start}, {verb_end}")
-
 
                     # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
                     # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
@@ -358,7 +258,6 @@ def get_tuples(sent):
                         advmod = advmod.pop()
                         strength = advmod
                         strength_start, strength_end = get_new_token_offset(strength, sent)
-                        # logging.info(f"Claim strength: {strength.text}")
                         strength = advmod.text
 
                         # get content span and offset with strength included
@@ -366,13 +265,10 @@ def get_tuples(sent):
                     else: 
                         # get content span and offset
                         content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
-                        # logging.info(f"TESTING: {list([j for j in a.subtree if j.i > a.i])}")
                     testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
-                    # logging.info(f"Subtree: {list(a.head.subtree)}")
-                    # logging.info(f"Content: {testing_content_text}, Offsets: {content_offsets}")
+                 
                     testing_tuple = [source.text, verb.text, testing_content_text, strength]
-                    # logging.info(f"{testing_tuple}")
-                    # logging.info(f"{len(content_offsets)}")
+                   
                     if len(content_offsets) >= 2: 
                         content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
                         
@@ -383,24 +279,11 @@ def get_tuples(sent):
                         
                         if not overlaps: 
                         
-                            # logging.info(f"This is firing pt 2")
-                        
-                            # logging.info(f"This is firing")
                             new_sent = sent.text
-                            # logging.info(f"Content start and end: {content_start} | {content_end}\n\n\n")
-                            # TODO: NOT ALL OFFSETS ARE LINING UP
-                            # logging.info(f"Sentence: {new_sent}")
-                            # logging.info(f"Length: {len(new_sent)}")
-                            # logging.info(f"")
-                            # logging.info(f"Start offsets: {source_start}, {verb_start}, {content_start}")
+                          
                             starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
-                            # logging.info(f"Starts: {starts}")
-                            # logging.info(f"End offsets: {source_end}, {verb_end}, {content_end}")
-                            # logging.info(f"{new_sent[source_end]}")
-                            # logging.info(f"{new_sent[verb_end]}")
-                            # logging.info()
+                            
                             ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
-                            # logging.info(f"Ends: {ends}")
                             if strength: 
                                 
                                 yield [
@@ -415,101 +298,95 @@ def get_tuples(sent):
                                     (verb_start, verb_end, "CLAIM_VERB"),
                                     (content_start, content_end, "CLAIM_CONTENTS"),
                                 ]
-                    
+
+# check if entities overlap   
 def overlap(start1, end1, start2, end2): 
     return end1 >= start2 and end2 >= start1
 
-# a function that identifies claim verbs and direct objects that are grammatically linked to a source
-def source_to_claim(source): 
-    claim_phrase = []
-    claim_verb = ""
-    claim_subtree = ""
-    strength_phrase = ""
-    # iterate through all ancestors of the source token
-    for a in source.ancestors: 
-        # when you get to a claim verb
-        if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
+# # NOTE: don think i need this
+# # a function that identifies claim verbs and direct objects that are grammatically linked to a source
+# def source_to_claim(source): 
+#     claim_phrase = []
+#     claim_verb = ""
+#     claim_subtree = ""
+#     strength_phrase = ""
+#     # iterate through all ancestors of the source token
+#     for a in source.ancestors: 
+#         # when you get to a claim verb
+#         if a.lemma_ in claim_verb_terms and a.pos_ == "VERB": 
             
-            # get claim verb
-            claim_verb = a.lemma_
+#             # get claim verb
+#             claim_verb = a.lemma_
 
-            # checks for adverb modifier that indicates degree of claim (not perfect)
-            advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_]
+#             # checks for adverb modifier that indicates degree of claim (not perfect)
+#             advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_]
             
-            # this does nothing right now 
-            prep = [j for j in a.children if j.dep_ == "prep"]
+#             # this does nothing right now 
+#             prep = [j for j in a.children if j.dep_ == "prep"]
 
-            # build strength modifier
-            if advmod: 
-                advmod = advmod.pop()
-                strength_phrase = advmod.text
+#             # build strength modifier
+#             if advmod: 
+#                 advmod = advmod.pop()
+#                 strength_phrase = advmod.text
     
-            # all descendants to the right of the root/claim verb that 
-            # Maybe modify to get multiple claims within one sentence? 
-            claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
+#             # all descendants to the right of the root/claim verb that 
+#             # Maybe modify to get multiple claims within one sentence? 
+#             claim_subtree = " ".join([j.text for j in a.subtree if j.i > a.i and not j.is_punct])
             
-            break
-            
-        # if verb is root of sentence but not the claim verb
-        # there will not be a claim verb in this instance
-        # Note: This step has been removed because it overfits to too many phrases
-        # elif a.sent.root == a and a.pos_ == "VERB" and a.lemma_ not in claim_verb_terms: 
-           
-        #     claim_subtree = " ".join([j.text for j in a.sent if j.i > source.i and not j.is_punct])
-
-        #     break
+#             break
     
-    return claim_verb, claim_subtree, strength_phrase
+#     return claim_verb, claim_subtree, strength_phrase
 
-def test_one_file(file=""): 
 
-    # if file not supplied
-    if not file: file = preprocess_text(pull_one_file())
-    doc = nlp(file)
-    claims = []
-    relations = dict()
-    explicit_claims = []
-    sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
-    strength_phrase_count = 0 # testing
-    processed_sents_count = 0 # testing
-    processed_sents = [] # testing
-    for ent in doc.ents: 
-        # print(ent.text, ent.label_) # testing
-        # print(ent.root.text) # testing
-        if ent.label_ in sources:
-            claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
-            if strength_phrase: strength_phrase_count += 1 # testing
-            if claim_contents:
-                processed_sents_count += 1 # testing
-                processed_sents.append(ent.root.sent.text) # testing
-                # print(f"\nProcessed sentence {processed_sents_count}: {ent.root.sent.text}") # testing 
-                # print(ent.text)
-                explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
+# def test_one_file(file=""): 
+
+#     # if file not supplied
+#     if not file: file = preprocess_text(pull_one_file())
+#     doc = nlp(file)
+#     claims = []
+#     relations = dict()
+#     explicit_claims = []
+#     sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
+#     strength_phrase_count = 0 # testing
+#     processed_sents_count = 0 # testing
+#     processed_sents = [] # testing
+#     for ent in doc.ents: 
+#         # print(ent.text, ent.label_) # testing
+#         # print(ent.root.text) # testing
+#         if ent.label_ in sources:
+#             claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
+#             if strength_phrase: strength_phrase_count += 1 # testing
+#             if claim_contents:
+#                 processed_sents_count += 1 # testing
+#                 processed_sents.append(ent.root.sent.text) # testing
+#                 # print(f"\nProcessed sentence {processed_sents_count}: {ent.root.sent.text}") # testing 
+#                 # print(ent.text)
+#                 explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
  
-    pprint.pprint(explicit_claims)
-    print(f"Number of claims identified: {len(explicit_claims)}" )
+#     pprint.pprint(explicit_claims)
+#     print(f"Number of claims identified: {len(explicit_claims)}" )
 
-def test_all_files(): 
-    for i, doc in enumerate(nlp.pipe(pull_all_files())):
+# def test_all_files(): 
+#     for i, doc in enumerate(nlp.pipe(pull_all_files())):
 
-        claims = []
-        relations = dict()
-        explicit_claims = []
-        sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
-        strength_phrase_count = 0 # testing
-        processed_sents_count = 0 # testing
-        processed_sents = [] # testing
-        for ent in doc.ents: 
-            if ent.label_ in sources: 
-                claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
-                if strength_phrase: strength_phrase_count += 1 # testing 
-                if claim_contents :
-                    processed_sents_count += 1 # testing
-                    processed_sents.append(ent.root.sent.text)
-                    explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
-        print("Strength phrase count: ", strength_phrase_count) # testing
-        pprint.pprint(explicit_claims)
-        pprint.pprint(processed_sents)
+#         claims = []
+#         relations = dict()
+#         explicit_claims = []
+#         sources = ["ORG", "PERSON", "GPE", "NORP", "LAW"]
+#         strength_phrase_count = 0 # testing
+#         processed_sents_count = 0 # testing
+#         processed_sents = [] # testing
+#         for ent in doc.ents: 
+#             if ent.label_ in sources: 
+#                 claim_verb, claim_contents, strength_phrase = source_to_claim(ent.root)
+#                 if strength_phrase: strength_phrase_count += 1 # testing 
+#                 if claim_contents :
+#                     processed_sents_count += 1 # testing
+#                     processed_sents.append(ent.root.sent.text)
+#                     explicit_claims.append((ent.text, claim_verb, claim_contents, strength_phrase))
+#         print("Strength phrase count: ", strength_phrase_count) # testing
+#         pprint.pprint(explicit_claims)
+#         pprint.pprint(processed_sents)
         
 def see_relations(text):
     doc = nlp(text)
