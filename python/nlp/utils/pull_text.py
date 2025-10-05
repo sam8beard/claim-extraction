@@ -37,7 +37,8 @@ def pull_one_file():
     # read from object body and decode 
     file_contents = file_object['Body'].read().decode('utf-8')
 
-    return preprocess_text(file_contents)
+    file_contents = preprocess_text(file_contents)
+    return file_contents
 
 # normalize text 
 def preprocess_text(text):
