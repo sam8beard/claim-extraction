@@ -45,3 +45,5 @@ python/nlp/logs/*
 go/uploader/nlp-files/*
 
 python/nlp/populate-logs.sh
+
+python/nlp/ner_v1.0

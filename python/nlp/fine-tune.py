@@ -43,20 +43,20 @@ def fine_tune():
     examples = []
     training_data = get_training_list()
     # training_data = align_offsets_to_tokens()
-    for text, annots in training_data: 
-        # logging.info(f"Text once passed to fine tune:\n {text}")
-        for start, end, label in annots["entities"]:
-            logging.info(f"{start, end, label}")
-            span = text[start:end]
-            if not span.strip():
-                logging.info(f"Empty span in: {text[start:end]!r}")
-            if end > len(text):
-                logging.info(f"Span out of range: {text[start:end]!r}")
-            if span not in text:
-                logging.info(f"Span text mismatch: '{span}' not found in '{text}'")
-            # doc = nlp.make_doc(text)
-        # example = Example.from_dict(doc, annots)
-        # examples.append(example)
+    # for text, annots in training_data: 
+    #     # logging.info(f"Text once passed to fine tune:\n {text}")
+    #     for start, end, label in annots["entities"]:
+    #         logging.info(f"{start, end, label}")
+    #         span = text[start:end]
+    #         if not span.strip():
+    #             logging.info(f"Empty span in: {text[start:end]!r}")
+    #         if end > len(text):
+    #             logging.info(f"Span out of range: {text[start:end]!r}")
+    #         if span not in text:
+    #             logging.info(f"Span text mismatch: '{span}' not found in '{text}'")
+    #         # doc = nlp.make_doc(text)
+    #     # example = Example.from_dict(doc, annots)
+    #     # examples.append(example)
 
 
     # adjust as needed 
@@ -67,7 +67,7 @@ def fine_tune():
         for itn in range(epochs): 
             random.shuffle(examples)
             losses = {}
-            batches = spacy.util.minibatch(training_data, size=8)
+            batches = spacy.util.minibatch(training_data, size=16)
             for batch in batches: 
                 examples = []
                 for text, annots in batch: 
@@ -75,8 +75,11 @@ def fine_tune():
                     doc = nlp.make_doc(text)
                     example = Example.from_dict(doc, annots)
                     examples.append(example)
-                nlp.update(examples, drop=0.15, losses=losses)
+                nlp.update(examples, drop=0.3, losses=losses)
             logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
+    logging.info(f"Number of examples processed: {len(training_data)}")
+
+    nlp.to_disk('ner_v1.0')
 
 def align_offsets_to_tokens():
     train_data = get_training_list()
@@ -112,6 +115,16 @@ def debug():
     logging.info(f"Claims: {claim_count}")
     logging.info(f"Valid claims: {valid_count}")
 
+def see_results(): 
+    nlp_updated = spacy.load("ner_v1.0")
+    doc = nlp_updated(pull_one_file())
+    results = [(ent.label_, ent.text) for ent in doc.ents]
+    
+    for result in results: 
+        pprint.pprint(f"{result}\n\n")
+        
+
+see_results()
 # debug()
-fine_tune()
+# fine_tune()
 # align_offsets_to_tokens()
