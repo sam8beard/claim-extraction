@@ -419,7 +419,6 @@ def main():
     # test_one_file("The UK states that it is reluctant with AI. It also claims that it is destructive")
     # see_relations("The UK states that it is reluctant with AI and it also claims that it is destructive")
     # test_one_file()
-    get_training_list()
     # see_relations("""Google’s translate system can suffer from gender bias by making sentences taken from the
     #                 U.S. Bureau of Labor Statistics into a dozen languages that are gender neutral, including Yoruba,
     #                 Hungarian, and Chinese, translating them into English, and showing that Google Translate shows favoritism toward males for stereotypical fields such as STEM jobs.""")
@@ -431,5 +430,7 @@ def main():
     # test_one_file("In an article from CNN, it was stated that AI is great. CNN reported that AI is not good. According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
     # see_relations("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
     # test_one_file("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
+    get_training_list()
+    
 if __name__ == "__main__": 
     main() 
