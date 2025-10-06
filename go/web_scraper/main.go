@@ -79,6 +79,7 @@ func main() {
 		// add urls 
 		for _, result := range response.Results {
 			fmt.Println(result)
+			
 			// fmt.Println(url_string)
 			// for i, url := range result.URL {
 			// 	fmt.Println(url)
