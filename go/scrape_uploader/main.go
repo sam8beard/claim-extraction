@@ -19,7 +19,8 @@ import (
 	"encoding/hex"
 	"github.com/sam8beard/claim-extraction/go/sqsclient"
 	"net/url"
-	"bytes"
+	// "math/big"
+	// "bytes"
 	// "github.com/gocolly/colly"
 	// "net/http"
 	// "slices"
@@ -35,7 +36,7 @@ import (
 )
 
 func main() { 
-
+	filesUploaded := 0
 	// set env vars for db conn ection
 	err := utils.LoadDotEnvUpwards()
 	if err != nil { 
@@ -63,6 +64,15 @@ func main() {
 	// link s3 client to uploader
 	uploader := manager.NewUploader(clientS3)
 	
+	// establish connection pool to pg db
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil { 
+			fmt.Println("Unable to establish database connection")
+			panic(err)
+	} // if 
+	defer pool.Close()
+
+	// allFiles = map[io.ReadCloser]string[fileTitle, fileUrl]
 	allFiles := GetFiles()
 
 	// process all files
@@ -77,63 +87,79 @@ func main() {
 		tempFile, err := os.CreateTemp("", "tempfile-*")
 		if err != nil { 
 			fmt.Println("Could not create temp file")
-			panic(err)
+			// panic(err)
+			continue
 		} // if 
 
-		// FINISH TOMORROW!!!! 
+		_, err = io.Copy(tempFile, fileReader)
+		if err != nil { 
+			fmt.Printf("Unable to copy file for metadata: %s\n", fileTitle)
+			continue
+		} // if 
 			
+		_, err = tempFile.Seek(0, io.SeekStart)
+		if err != nil { 	
+			tempFile.Close()
+			fmt.Println("Unable to reset offset")
+			continue
+		} // if 
+			
+		fileReader.Close()
+		defer tempFile.Close()
 
-
-
-
-
-
-		tempData, err := io.ReadAll(fileReader)
-		newReader := bytes.NewReader(tempData)
-		fileInfo, err := newReader.Stat()
+		fileInfo, err := tempFile.Stat()
 		if err != nil { 
 			fmt.Println("Couldn't get file stats")
-			panic(err)
+			// panic(err)
+			continue
 		} // if 
+		
 		fileSize := fileInfo.Size()
-		
-		
+		// fileSizeInt := big.NewInt(fileSize)
+		if fileSize == 0 { 
+			fmt.Println("File is either empty or was not read properly")
+			continue
+		}
 		
 		// get file hash then reset pointer 
-		data, err := io.ReadAll(newReader) 
+		data, err := io.ReadAll(tempFile) 
 		if err != nil { 
 			fmt.Println("Error reading file body")
-			panic(err)
+			// panic(err)
+			continue
 		} // if 
 		h := sha256.New()
 		h.Write(data)
 		hashBytes := h.Sum(nil)
 		fileHash := hex.EncodeToString(hashBytes)
-		newReader.Seek(0, io.SeekStart)
+		tempFile.Seek(0, io.SeekStart)
 
 		// get host for object key 
 		parsedUrl, err := url.Parse(fileUrl)
 		if err != nil { 
 			fmt.Println("Could not parse url")
-			panic(err)
+			// panic(err)
+			continue
 		} // if 
-		hostName := url.Hostname()
+		hostName := parsedUrl.Hostname()
 		
 		// construct object key
+		fileTitle = fmt.Sprint(fileTitle, ".pdf")
 		currTime := time.Now()
 		formattedTime := currTime.Format(time.RFC3339)
-		fileKey := fmt.Sprintf("raw", "/", hostName, formattedTime, "-", fileTitle)
+		fileKey := fmt.Sprint("raw", "/", hostName, "/", formattedTime, "-", fileTitle)
 		
 		// insert into bucket 
 		result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String("claim-pipeline-docstore"),
 			Key: 	aws.String(fileKey),
-			Body:	newReader,
+			Body:	tempFile,
 		})
 
 		if err != nil { 
 			fmt.Println("Could not upload to S3 bucket.")
-			panic(err)
+			// panic(err)
+			continue
 		} // if 
 
 		fmt.Println("Successfully uploaded to S3 bucket:  ", result, "\n")
@@ -145,21 +171,14 @@ func main() {
 		})
 		
 		if err != nil { 
-			fmt.Println("Could nto receive message")
+			fmt.Println("Could not receive message")
 			panic(err)
 		} // if 
 		
-		// establish connection pool to pg db
-		pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-		if err != nil { 
-			fmt.Println("Unable to establish database connection")
-			panic(err)
-		} // if 
-		defer pool.Close()
 
 		// create document entry
 		doc := models.Document{ 
-			FileName: fileName, 
+			FileName: fileTitle, 
 			Source: hostName, 
 			ContentHash: fileHash, 
 			S3Key: fileKey, 
@@ -179,13 +198,12 @@ func main() {
 		err = db.InsertDocumentMetadata(context.Background(), pool, &doc)
 		if err != nil {
 			fmt.Println("Error inserting row into database: ", err)
-			return
+			continue
 		} // if 
 		
 		fmt.Println("Successfully inserted row into Postgres database")
+		filesUploaded += 1
 
-
-		return 
 
 		// construct file key
 		//		get title from file map
@@ -204,15 +222,10 @@ func main() {
 		// insert doc if processed 
 		
 	} // for 
-
+	
+	fmt.Printf("Files successfully uploaded: %d\n", filesUploaded)
 	
 	// link s3 uploader 
 
-	
-
-
-	
-
-	
 
 } // main 

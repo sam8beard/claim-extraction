@@ -21,7 +21,10 @@ def pull_all_files():
 
         # provide texts one at a time for streaming 
         # yield preprocess_text(file_contents)
-        yield preprocess_text(file_contents)
+        if len(file_contents) >= 1000000: 
+            yield preprocess_text(file_contents[:999999])
+        else: 
+            yield preprocess_text(file_contents)
 
 # for faster testing
 def pull_one_file():
@@ -39,6 +42,28 @@ def pull_one_file():
 
     file_contents = preprocess_text(file_contents)
     return file_contents
+def pull_n_files(num_of_files): 
+     # open file and read file with keys
+    file_path = Path(__file__).parent.parent / "training/s3-keys.json"
+ 
+    with open (file_path, "r") as file: 
+        keys = json.load(file)
+
+    
+    for i, object_key in enumerate(keys):
+        file_object = s3.get_object(Bucket="claim-pipeline-docstore", Key=object_key)
+        # read from object body and decode 
+        file_contents = file_object['Body'].read().decode('utf-8')
+
+        # provide texts one at a time for streaming 
+        # yield preprocess_text(file_contents)
+        if i == num_of_files: 
+            break
+        if len(file_contents) >= 1000000:
+            
+            yield preprocess_text(file_contents[:999999])
+        else: 
+            yield preprocess_text(file_contents)
 
 # normalize text 
 def preprocess_text(text):

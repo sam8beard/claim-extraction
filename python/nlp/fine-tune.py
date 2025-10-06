@@ -11,6 +11,7 @@ from spacy.pipeline import EntityRuler
 from spacy.util import filter_spans
 from utils.pull_text import pull_all_files
 from utils.pull_text import pull_one_file
+from utils.pull_text import pull_n_files
 from utils.pull_text import preprocess_text
 from spacy.language import Language, Doc
 import logging 
@@ -67,7 +68,7 @@ def fine_tune():
         for itn in range(epochs): 
             random.shuffle(examples)
             losses = {}
-            batches = spacy.util.minibatch(training_data, size=16)
+            batches = spacy.util.minibatch(training_data, size=32)
             for batch in batches: 
                 examples = []
                 for text, annots in batch: 
@@ -117,14 +118,53 @@ def debug():
 
 def see_results(): 
     nlp_updated = spacy.load("ner_v1.0")
-    doc = nlp_updated(pull_one_file())
-    results = [(ent.label_, ent.text) for ent in doc.ents]
+    # doc = nlp_updated(pull_one_file())
+    num = 5
+    for file in pull_n_files(num): 
+        doc = nlp_updated(file)
+        results = [(ent.label_, ent.text) for ent in doc.ents]
     
-    for result in results: 
-        pprint.pprint(f"{result}\n\n")
+        for result in results: 
+            pprint.pprint(f"{result}\n\n")
         
 
-see_results()
+# see_results()
 # debug()
 # fine_tune()
+see_results()
 # align_offsets_to_tokens()
+
+# for next model, try 40 epochs, drop=0.35, optimizer.learn_rate = 0.0005
+
+# losses over 30 epochs with 829 examples, drop = 0.3, batchsize = 32
+# INFO:root:Iteration: 1, Losses: {'ner': np.float32(6035.229)}
+# INFO:root:Iteration: 2, Losses: {'ner': np.float32(5059.371)}
+# INFO:root:Iteration: 3, Losses: {'ner': np.float32(4288.8633)}
+# INFO:root:Iteration: 4, Losses: {'ner': np.float32(3696.9487)}
+# INFO:root:Iteration: 5, Losses: {'ner': np.float32(2620.0908)}
+# INFO:root:Iteration: 6, Losses: {'ner': np.float32(1959.4371)}
+# INFO:root:Iteration: 7, Losses: {'ner': np.float32(1724.4547)}
+# INFO:root:Iteration: 8, Losses: {'ner': np.float32(1459.8206)}
+# INFO:root:Iteration: 9, Losses: {'ner': np.float32(1427.7465)}
+# INFO:root:Iteration: 10, Losses: {'ner': np.float32(1294.2133)}
+# INFO:root:Iteration: 11, Losses: {'ner': np.float32(1219.9303)}
+# INFO:root:Iteration: 12, Losses: {'ner': np.float32(1157.6885)}
+# INFO:root:Iteration: 13, Losses: {'ner': np.float32(1112.0709)}
+# INFO:root:Iteration: 14, Losses: {'ner': np.float32(1036.1287)}
+# INFO:root:Iteration: 15, Losses: {'ner': np.float32(1034.9926)}
+# INFO:root:Iteration: 16, Losses: {'ner': np.float32(1011.6324)}
+# INFO:root:Iteration: 17, Losses: {'ner': np.float32(915.64374)}
+# INFO:root:Iteration: 18, Losses: {'ner': np.float32(921.95074)}
+# INFO:root:Iteration: 19, Losses: {'ner': np.float32(907.56305)}
+# INFO:root:Iteration: 20, Losses: {'ner': np.float32(835.0009)}
+# INFO:root:Iteration: 21, Losses: {'ner': np.float32(815.7493)}
+# INFO:root:Iteration: 22, Losses: {'ner': np.float32(822.19446)}
+# INFO:root:Iteration: 23, Losses: {'ner': np.float32(808.78516)}
+# INFO:root:Iteration: 24, Losses: {'ner': np.float32(769.9993)}
+# INFO:root:Iteration: 25, Losses: {'ner': np.float32(760.7867)}
+# INFO:root:Iteration: 26, Losses: {'ner': np.float32(767.87103)}
+# INFO:root:Iteration: 27, Losses: {'ner': np.float32(757.646)}
+# INFO:root:Iteration: 28, Losses: {'ner': np.float32(749.51526)}
+# INFO:root:Iteration: 29, Losses: {'ner': np.float32(719.44934)}
+# INFO:root:Iteration: 30, Losses: {'ner': np.float32(762.30396)}
+# INFO:root:Number of examples processed: 829
