@@ -41,7 +41,7 @@ type Result struct {
 	// PublishedDate string	`json:"publishedDate"`
 } // Result
 
-func GetFiles() { 
+func GetFiles() (map[io.ReadCloser][]string){ 
 	// all unique urls retrieved 
 	var fileUrls []string
 	// file title mapped to url
@@ -135,4 +135,6 @@ func GetFiles() {
 	for reader, details := range finalFiles { 
 		fmt.Println(reader, " : ", details[0], " : ", details[1])
 	} // for
-}
+
+	return finalFiles
+} // GetFiles

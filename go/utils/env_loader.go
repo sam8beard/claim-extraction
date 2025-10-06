@@ -9,7 +9,6 @@ import (
 func LoadDotEnvUpwards() error { 
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Println(dir) 
 		return err
 	} // if 
 
