@@ -18,6 +18,7 @@ go/uploader/build.go
 go/uploader/run-test.go
 go/s3_fetcher/build.sh
 go/s3_fetcher/fetch-keys
+go/web_scraper/web_scraper
 
 
 # macOS
