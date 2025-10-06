@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"github.com/gocolly/colly"
 	"encoding/json"
-	// "strings"
+	"strings"
 	// "io"
 	"slices"
-	"net/http"
+	"regexp"
+	// "net/http"
 	// "reflect"
 )
 
@@ -33,7 +34,7 @@ type ResponseBody struct {
 
 type Result struct { 
 	URL string				`json:"url"`
-	// Title string			`json:"title"`
+	Title string			`json:"title"`
 	// Content string			`json:"content"`
 	// Thumbnail string		`json:"thumbnail"`
 	// Engine string			`json:"engine"`
@@ -50,6 +51,7 @@ type Result struct {
 
 func main() { 
 	var file_urls []string
+	files := make(map[string]string)
 	c := colly.NewCollector()
 
 	// iteratively increase 1 up to maybeeee 15?
@@ -84,8 +86,20 @@ func main() {
 			// add urls 
 			for _, result := range response.Results {
 				// check if url already exists in our slice
+				// fmt.Println(result.Title)
+				// fmt.Println(result.URL)
+
 				if !slices.Contains(file_urls, result.URL) { 
 					file_urls = append(file_urls, result.URL)
+					lower := strings.ToLower(result.Title)
+					no_elp := strings.ReplaceAll(lower, "...", "")
+					file_name := strings.ReplaceAll(no_elp, " ", "-")
+					reNonAlnum := regexp.MustCompile(`[^a-z0-9\-]`)
+					file_name = reNonAlnum.ReplaceAllString(file_name, "-")
+					reMultDash := regexp.MustCompile(`-+`)
+					file_name = reMultDash.ReplaceAllString(file_name, "-")
+					file_name = strings.Trim(file_name, "-")
+					files[file_name] = result.URL
 				} // if 
 			} // for 
 
@@ -103,22 +117,32 @@ func main() {
 		new_url := fmt.Sprintf("%s%d", url, page_num)
 		c.Visit(new_url)
 	} // for 
+	
+	// get 30 pages worth of urls
+	// for page_num := 1; page_num < 31; page_num++ { 
+		
+	// 	new_url := fmt.Sprintf("%s%d", url, page_num)
+	// 	c.Visit(new_url)
+	// } // for 
+	
+	for title, url := range files { 
+		fmt.Println(title, ": ", url)
+	} // for 
 
 	// download files 
-
-	for _, url := range file_urls { 
-		resp, err := http.Get(url)
-		if err != nil { 
-			fmt.Printf("\nCould not retrieve file at %s\n", url)
-			// resp.Close = true
-			// panic(err)
-		} else {
-			body := resp.Body
-			fmt.Println(body)
+	// for _, url := range file_urls { 
+	// 	resp, err := http.Get(url)
+	// 	if err != nil { 
+	// 		fmt.Printf("\nCould not retrieve file at %s\n", url)
+	// 		// resp.Close = true
+	// 		// panic(err)
+	// 	} else {
+	// 		body := resp.Body
+	// 		fmt.Println(body)
 			
-		} // if 
-		// resp.Close = true
-	} // for
+	// 	} // if 
+	// 	// resp.Close = true
+	// } // for
 	
 	// // Testing
 	// for _, url := range file_urls { 

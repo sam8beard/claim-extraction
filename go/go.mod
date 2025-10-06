@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.81
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.81.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.6
+	github.com/gocolly/colly v1.2.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1
 )
@@ -35,7 +36,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0 // indirect
 	github.com/aws/smithy-go v1.23.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
