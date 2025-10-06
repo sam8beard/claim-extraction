@@ -540,27 +540,27 @@ engines:
   #   shortcut: bil
   #   disabled: true
 
-  - name: bing
-    engine: bing
-    shortcut: bi
-    disabled: true
+  # - name: bing
+  #   engine: bing
+  #   shortcut: bi
+  #   disabled: true
 
-  - name: bing images
-    engine: bing_images
-    shortcut: bii
+  # - name: bing images
+  #   engine: bing_images
+  #   shortcut: bii
 
-  - name: bing news
-    engine: bing_news
-    shortcut: bin
+  # - name: bing news
+  #   engine: bing_news
+  #   shortcut: bin
 
-  - name: bing videos
-    engine: bing_videos
-    shortcut: biv
+  # - name: bing videos
+  #   engine: bing_videos
+  #   shortcut: biv
 
-  - name: bitchute
-    engine: bitchute
-    shortcut: bit
-    disabled: true
+  # - name: bitchute
+  #   engine: bitchute
+  #   shortcut: bit
+  #   disabled: true
 
   # - name: bitbucket
   #   engine: xpath
@@ -811,35 +811,35 @@ engines:
   #   tests: *tests_infobox
   #   categories: [general]
 
-  - name: duckduckgo
-    engine: duckduckgo
-    shortcut: ddg
+  # - name: duckduckgo
+  #   engine: duckduckgo
+  #   shortcut: ddg
 
-  - name: duckduckgo images
-    engine: duckduckgo_extra
-    categories: [images, web]
-    ddg_category: images
-    shortcut: ddi
-    disabled: true
+  # - name: duckduckgo images
+  #   engine: duckduckgo_extra
+  #   categories: [images, web]
+  #   ddg_category: images
+  #   shortcut: ddi
+  #   disabled: true
 
-  - name: duckduckgo videos
-    engine: duckduckgo_extra
-    categories: [videos, web]
-    ddg_category: videos
-    shortcut: ddv
-    disabled: true
+  # - name: duckduckgo videos
+  #   engine: duckduckgo_extra
+  #   categories: [videos, web]
+  #   ddg_category: videos
+  #   shortcut: ddv
+  #   disabled: true
 
-  - name: duckduckgo news
-    engine: duckduckgo_extra
-    categories: [news, web]
-    ddg_category: news
-    shortcut: ddn
-    disabled: true
+  # - name: duckduckgo news
+  #   engine: duckduckgo_extra
+  #   categories: [news, web]
+  #   ddg_category: news
+  #   shortcut: ddn
+  #   disabled: true
 
-  - name: duckduckgo weather
-    engine: duckduckgo_weather
-    shortcut: ddw
-    disabled: true
+  # - name: duckduckgo weather
+  #   engine: duckduckgo_weather
+  #   shortcut: ddw
+  #   disabled: true
 
   # - name: apple maps
   #   engine: apple_maps

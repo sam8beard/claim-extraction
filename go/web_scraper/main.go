@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	// "strings"
 	// "io"
-	// "slices"
+	"slices"
+	"net/http"
+	// "reflect"
 )
 
 // endpoints?:  
@@ -68,42 +70,59 @@ func main() {
 
 	c.OnResponse(func(r *colly.Response) { 
 		
-		fmt.Println(r.StatusCode)
 		// get response body 
-		body := r.Body
-		
-		// unmarshal response body
-		var response ResponseBody
-		json.Unmarshal(body, &response)
+		if r.StatusCode == 200 { 
+			body := r.Body
 
-		// add urls 
-		for _, result := range response.Results {
-			fmt.Println(result)
-			
-			// fmt.Println(url_string)
-			// for i, url := range result.URL {
-			// 	fmt.Println(url)
-			// 	// check if url already exist in our list 
-			// 	if !slices.Contains(file_urls, url) { 
-			// 		// add url
-			// 		file_urls = append(file_urls, url)
-			// 	} // if 
-			// }
-		} // for 
+			// use this if we want to also scrape for files that are not located directly at url
+			// headers := r.Headers
+
+			// unmarshal response body
+			var response ResponseBody
+			json.Unmarshal(body, &response)
+
+			// add urls 
+			for _, result := range response.Results {
+				// check if url already exists in our slice
+				if !slices.Contains(file_urls, result.URL) { 
+					file_urls = append(file_urls, result.URL)
+				} // if 
+			} // for 
+
+		} // if 
+		
 	}) // OnResponse
 
 	
-	
+	// base url
 	url := "http://localhost:8888/search?q=AI+safety+ethics+filetype:pdf&format=json&pageno="
 
+	// get 15 pages worth of urls 
 	for page_num := 1; page_num < 16; page_num++ { 
 		
 		new_url := fmt.Sprintf("%s%d", url, page_num)
 		c.Visit(new_url)
 	} // for 
 
+	// download files 
+
 	for _, url := range file_urls { 
-		fmt.Println(url)
-	} // for 
+		resp, err := http.Get(url)
+		if err != nil { 
+			fmt.Printf("\nCould not retrieve file at %s\n", url)
+			// resp.Close = true
+			// panic(err)
+		} else {
+			body := resp.Body
+			fmt.Println(body)
+			
+		} // if 
+		// resp.Close = true
+	} // for
+	
+	// // Testing
+	// for _, url := range file_urls { 
+	// 	fmt.Println(url)
+	// } // for 
 	
 } // main 
