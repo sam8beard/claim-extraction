@@ -11,10 +11,12 @@ from spacy.pipeline import EntityRuler
 from spacy.util import filter_spans
 from utils.pull_text import pull_all_files
 from utils.pull_text import pull_one_file
+from utils.pull_text import pull_n_files
 from utils.pull_text import preprocess_text
 from spacy.language import Language, Doc
 import logging 
 import sys 
+
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
@@ -76,8 +78,16 @@ tech_terms = [
         "Autonomous Systems"
     ]
 
-# add claim strength group???
-# claim_strength = []
+claim_mod_terms = [
+    "absolutely", "allegedly", "apparently", "arguably", "assuredly", "boldly", "clearly", "confidently", "conclusively",
+    "definitely", "deeply", "dramatically", "evidently", "exactly", "explicitly", "expressly", "firmly", "forcefully",
+    "frequently", "generally", "highly", "honestly", "importantly", "indeed", "indisputably", "ironically", "literally",
+    "mostly", "naturally", "notably", "officially", "openly", "obviously", "often", "particularly", "persistently",
+    "plainly", "positively", "potentially", "powerfully", "precisely", "probably", "profoundly", "purportedly", "quietly",
+    "rarely", "repeatedly", "reportedly", "respectfully", "rigorously", "roughly", "seriously", "significantly",
+    "solemnly", "specifically", "strongly", "supposedly", "surely", "tentatively", "thoroughly", "truly", "undoubtedly",
+    "unquestionably", "usually", "verbally", "visibly", "widely", "willingly"
+]
 
 
 example_text = """
@@ -167,8 +177,51 @@ def initialize_all_docs():
 #     new_end_char = new_start_char + len(stripped_text) # testing
 #     return span.doc.char_span(new_start_char, span.end_char)
 
+def get_training_list_spcat(): 
+    train_data = [] # add tuples here
+    final_text = "" # add entire claim sentence here
+    annotations = [] # add offset tuples here
 
-def get_training_list(): 
+    # doc = initialize_doc(data)
+    
+    # doc = initialize_doc(example_text)
+    # doc = initialize_doc(
+    #     'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+    #     'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+    #     'AI at all stages, with a focus on support for under-represented groups.'
+    # )
+    # doc = initialize_doc()
+    claim_count = 0
+    sent_count = 0
+    seen_sents = []
+    # for doc in nlp.pipe(pull_all_files()): 
+    # testing
+    for doc in nlp.pipe(pull_n_files(5)):
+        sent_count += len(list(doc.sents))
+        
+        for ent in doc.ents:
+            
+            if ent.label_ in target_sources:
+                source_span = ent.root.sent
+            
+                if source_span not in seen_sents: 
+                    seen_sents.append(source_span)
+
+                    
+                    
+                    for entry in get_tuples_spcat(source_span): 
+                        
+                        if entry: 
+                            final_text = preprocess_text(source_span.text)
+                            claim_count += 1
+                            annotations = entry
+                            data = ((final_text, annotations))
+                            train_data.append(data)
+    for data in train_data: 
+        print(f"\n\n{data}\n\n")
+    return train_data
+
+def get_training_list_ner(): 
     train_data = [] # add tuples here
     final_text = "" # add entire claim sentence here
     annotations = [] # add offset tuples here
@@ -198,7 +251,7 @@ def get_training_list():
 
                     
                     
-                    for entry in get_tuples(source_span): 
+                    for entry in get_tuples_ner(source_span): 
                         
                         if entry: 
                             final_text = preprocess_text(source_span.text)
@@ -216,14 +269,115 @@ def get_new_token_offset(token, sent):
     return rel_start, rel_end
 
 
-# get tuples from a target sentence
-# sentence: a span that contains the ent, sources: a list of target sources
-def get_tuples(sent):
+# NEED TO REFACTOR TO GET STARTING AND ENDING INDICES INSTEAD OF OFFSETS 
+
+
+# !!!!!!!!!!!!!
+# In spaCy, if a Span consists of only one token, the start attribute of that Span will be 
+# the index of that singular token, and the end attribute will be the index of the token after it.
+# !!!!!!!!!!!!!
+
+
+# start = 
+def get_tuples_spcat(sent): 
     source_start, source_end = 0, 0
     verb_start, verb_end = 0, 0
     content_start, content_end = 0, 0
-    strength_start, strength_end = 0, 0
-    strength = ""
+    claim_mod_start, claim_mod_end = 0, 0
+    claim_mod = ""
+    
+    # testing - making new doc from sentence arg 
+    doc = nlp(sent.text)
+    # for source in sent.ents: 
+    for source in doc.ents:
+        if source.label_ in target_sources: 
+            
+    
+            # new start of entity offset 
+            source_start = source.start
+            source_end = source.end
+            # source_start = ent_start
+            # source_end = ent_end
+          
+            # NOTE: we have found a valid claim
+            for a in source.root.ancestors: 
+                if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
+                    
+                    verb = a
+                  
+                    verb_start = verb.i
+                    verb_end = verb.i + 1
+
+                    # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
+                    # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
+                    advmod = [j for j in a.children if j.dep_ == "advmod" and j.text in claim_mod_terms and j.i == a.i - 1]
+                
+                    # build claim_mod modifier
+                    if advmod: 
+                        advmod = advmod.pop()
+                        claim_mod = advmod
+                        claim_mod_start = claim_mod.i
+                        claim_mod_end = claim_mod.i + 1
+                        claim_mod = advmod.text
+
+                        # get content span and offset with claim_mod included
+                        content_i = [j for j in a.subtree if j.i > a.i and j.i > advmod.i and not j.is_punct]
+                    else: 
+                        # get content span and offset
+                        content_i = [j for j in a.subtree if j.i > a.i and not j.is_punct]
+                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
+                 
+                    testing_tuple = [source.text, verb.text, testing_content_text, claim_mod]
+                   
+                    if len(content_i) >= 2: 
+                        content_start = content_i[0].i
+                        
+                        content_end = content_i[-2].i 
+                        # content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
+                        
+                        # overlaps = [flag for flag in list((
+                        #             (overlap(source_start, source_end, content_start, content_end)), 
+                        #             (overlap(content_start, content_end, verb_start, verb_end))))
+                        #             if flag == True]
+                        
+                        # if not overlaps: 
+                    
+                        new_sent = sent.text
+                        
+                        # starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
+                        
+                        # ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                        if claim_mod: 
+                            
+                            yield {
+                                "spans": {
+                                    "sc": [
+                                        (source_start, source_end, "SOURCE"),
+                                        (verb_start, verb_end, "CLAIM_VERB"),
+                                        (content_start, content_end, "CLAIM_CONTENTS"),
+                                        (claim_mod_start, claim_mod_end, "CLAIM_MOD")
+                                    ]
+                                }
+                            }
+                        else: 
+                            yield {
+                                "spans": {
+                                    "sc": [
+                                        (source_start, source_end, "SOURCE"),
+                                        (verb_start, verb_end, "CLAIM_VERB"),
+                                        (content_start, content_end, "CLAIM_CONTENTS")
+                                    ]
+                                }
+                            }
+
+# get tuples from a target sentence
+# sentence: a span that contains the ent, sources: a list of target sources
+def get_tuples_ner(sent):
+    source_start, source_end = 0, 0
+    verb_start, verb_end = 0, 0
+    content_start, content_end = 0, 0
+    claim_mod_start, claim_mod_end = 0, 0
+    claim_mod = ""
     
 
     for source in sent.ents: 
@@ -253,21 +407,21 @@ def get_tuples(sent):
                     # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
                     advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_ and j.i == a.i - 1]
                 
-                    # build strength modifier
+                    # build claim_mod modifier
                     if advmod: 
                         advmod = advmod.pop()
-                        strength = advmod
-                        strength_start, strength_end = get_new_token_offset(strength, sent)
-                        strength = advmod.text
+                        claim_mod = advmod
+                        claim_mod_start, claim_mod_end = get_new_token_offset(claim_mod, sent)
+                        claim_mod = advmod.text
 
-                        # get content span and offset with strength included
+                        # get content span and offset with claim_mod included
                         content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and j.i > advmod.i and not j.is_punct]
                     else: 
                         # get content span and offset
                         content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
                     testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
                  
-                    testing_tuple = [source.text, verb.text, testing_content_text, strength]
+                    testing_tuple = [source.text, verb.text, testing_content_text, claim_mod]
                    
                     if len(content_offsets) >= 2: 
                         content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
@@ -284,13 +438,13 @@ def get_tuples(sent):
                             starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
                             
                             ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
-                            if strength: 
+                            if claim_mod: 
                                 
                                 yield [
                                     (source_start, source_end, "SOURCE"),
                                     (verb_start, verb_end, "CLAIM_VERB"),
                                     (content_start, content_end, "CLAIM_CONTENTS"),
-                                    (strength_start, strength_end, "CLAIM_STRENGTH")
+                                    (claim_mod_start, claim_mod_end, "CLAIM_MOD")
                                 ]
                             else: 
                                 yield [
@@ -324,7 +478,7 @@ def overlap(start1, end1, start2, end2):
 #             # this does nothing right now 
 #             prep = [j for j in a.children if j.dep_ == "prep"]
 
-#             # build strength modifier
+#             # build claim_mod modifier
 #             if advmod: 
 #                 advmod = advmod.pop()
 #                 strength_phrase = advmod.text
@@ -399,17 +553,17 @@ def main():
     # ------------------
     # - CURRENT STRUCTURE: [source] [claim_verb] [claim_contents] | [claim_strength]
     # - was able to use dependency parsing to retrieve source, claim verb (defined by our claim_verb_terms), claim contents, and 
-    #   SOMETIMES claim strength. 
+    #   SOMETIMES claim claim_mod. 
     # - the rules are very loose and this wont work 100% of the time
     # - for most sentences that make a single claim and their source is an ORG, PERSON, or GPE, 
     #   this algorithm will work at retrieving at least a triplet of data describing the claim
-    # - if an adverb is used to describe the claim verb and it ends in ly, it will be added to claim strength.
+    # - if an adverb is used to describe the claim verb and it ends in ly, it will be added to claim claim_mod.
     #   - obviously this isnt perfect as there are other words like "only" that also fit this description 
     #   - and im sure there are adverbs that dont end in ly that i should be looking for 
     # - if multiple claims are made in a sentence, then only the first claim verb is parsed as the claim verb, but the remainder
     #   of the claim contents should end up in the claim_contents 
     # - does not recognized pronouns, would have to use coreferencing in order to accomplish this 
-    # - will probably want to give a score to the claim strength, need to figure out how to do this
+    # - will probably want to give a score to the claim claim_mod, need to figure out how to do this
 
 
     # see_relations("Miller however suggests that the user should be cautious with AI.")
@@ -430,7 +584,8 @@ def main():
     # test_one_file("In an article from CNN, it was stated that AI is great. CNN reported that AI is not good. According to John Smith, AI will revolutionize energy production by 2030. According to the BBC, global food shortages will increase in the next decade. According to Dr. Robert Chen, AI ethics will become a central concern for policymakers.  According to Reuters, interest rates will likely rise next year. According to CNN, climate migration will increase in the coming years. According to Bloomberg, quantum computing will transform finance. According to the New York Times, AI bias remains a major challenge.  According to Wired, cybersecurity threats will evolve rapidly. According to Fox News, renewable energy adoption will accelerate. According to NPR, social media influences public opinion strongly. According to The Guardian, climate resilience is key to sustainable development. According to Financial Times, global trade patterns are shifting. According to Vox, misinformation spreads faster than truth.")
     # see_relations("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
     # test_one_file("The French government states that renewable energy will be the primary power source. The Japanese government states that electric vehicles will dominate the market by 2040.")
-    get_training_list()
+    # get_training_list_ner()
+    get_training_list_spcat()
     
 if __name__ == "__main__": 
     main() 

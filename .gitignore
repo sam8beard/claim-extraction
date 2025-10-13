@@ -49,3 +49,4 @@ go/uploader/nlp-files/*
 python/nlp/populate-logs.sh
 
 python/nlp/ner_v1.0
+python/nlp/spancat_v1.0
