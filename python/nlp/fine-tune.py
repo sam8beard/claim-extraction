@@ -64,7 +64,7 @@ def fine_tune():
     other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "ner"]
     with nlp.disable_pipes(*other_pipes):
         optimizer = nlp.resume_training()
-        epochs = 30
+        epochs = 40
         for itn in range(epochs): 
             random.shuffle(examples)
             losses = {}
@@ -76,7 +76,7 @@ def fine_tune():
                     doc = nlp.make_doc(text)
                     example = Example.from_dict(doc, annots)
                     examples.append(example)
-                nlp.update(examples, drop=0.3, losses=losses)
+                nlp.update(examples, drop=0.35, losses=losses)
             logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
     logging.info(f"Number of examples processed: {len(training_data)}")
 
