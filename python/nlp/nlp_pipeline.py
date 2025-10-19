@@ -198,7 +198,7 @@ def get_training_list_spcat_2():
     seen_sents = []
     # for doc in nlp.pipe(pull_all_files()): 
     # testing
-    for doc in nlp.pipe(pull_n_files(5)):
+    for doc in nlp.pipe(pull_n_files(1)):
         sent_count += len(list(doc.sents))
         
         for ent in doc.ents:
@@ -219,8 +219,8 @@ def get_training_list_spcat_2():
                             annotations = entry
                             data = ((final_text, annotations))
                             train_data.append(data)
-    for data in train_data: 
-        print(f"\n\n{data}\n\n")
+    # for data in train_data: 
+    #     print(f"\n\n{data}\n\n")
     return train_data
 
 # retrieves training data with token offsets

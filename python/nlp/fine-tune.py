@@ -179,7 +179,8 @@ def build_claim_suggester() -> Suggester:
         spans = []
         lengths = []
         for doc in docs: 
-
+            for token in doc: 
+                logging.info(token.text)
             if doc.has_annotation("DEP"):
                 logging.info("Firing Here")
                 claims = []
@@ -280,7 +281,7 @@ def fine_tune_spcat():
     # create config to add components to frozen and annotating lists for custom suggester
     # NOTE: might need to add additional configurations to this config since 
     #       we are using a custom config, 
-    # NOTE: nlp.update()
+    # NOTE: nlp.update() configures this training config, might have to initialize other members
     training_config = { 
         "training": { 
             "frozen_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"],
@@ -302,7 +303,7 @@ def fine_tune_spcat():
     # create config for spancat component
     spancat_config = {
             "spans_key": "sc",
-            "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 20},
+            "suggester": {"@misc": "claim_suggester.v1"},
             "threshold": 0.8,
             "max_positive": None, 
             # "frozen_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
@@ -324,7 +325,8 @@ def fine_tune_spcat():
     
     nlp.add_pipe("spancat", config=spancat_config)
     spancat = nlp.get_pipe('spancat')
-  
+    
+
     for label in labels: spancat.add_label(label)
 
     pipe_exceptions = ["spancat"]
@@ -352,9 +354,9 @@ def fine_tune_spcat():
     # create examples from training data
     for text, annots in training_data: 
         doc = nlp.make_doc(text)
-        logging.info(len(doc))
-        logging.info(text)
-        logging.info(annots)
+        # logging.info(len(doc))
+        # logging.info(text)
+        # logging.info(annots)
 
         examples.append(Example.from_dict(doc, annots))
 
@@ -497,8 +499,8 @@ def see_results_spcat():
 # fine_tune_ner()
 # see_results()
 # get_training_list_spcat_2() 
-# fine_tune_spcat()
-see_results_spcat()
+fine_tune_spcat()
+# see_results_spcat()
 # print_label_count()
 # see_results_spcat()
 # align_offsets_to_tokens()
