@@ -177,6 +177,53 @@ def initialize_all_docs():
 #     new_end_char = new_start_char + len(stripped_text) # testing
 #     return span.doc.char_span(new_start_char, span.end_char)
 
+
+# uses modified get_tuples_spcat_2 to retrieve training data with char offsets
+def get_training_list_spcat_2(): 
+    train_data = [] # add tuples here
+    final_text = "" # add entire claim sentence here
+    annotations = [] # add offset tuples here
+
+    # doc = initialize_doc(data)
+    
+    # doc = initialize_doc(example_text)
+    # doc = initialize_doc(
+    #     'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
+    #     'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
+    #     'AI at all stages, with a focus on support for under-represented groups.'
+    # )
+    # doc = initialize_doc()
+    claim_count = 0
+    sent_count = 0
+    seen_sents = []
+    for doc in nlp.pipe(pull_all_files()): 
+    # testing
+    # for doc in nlp.pipe(pull_n_files(30)):
+        sent_count += len(list(doc.sents))
+        
+        for ent in doc.ents:
+            
+            if ent.label_ in target_sources:
+                source_span = ent.root.sent
+            
+                if source_span not in seen_sents: 
+                    seen_sents.append(source_span)
+
+                    
+                    
+                    for entry in get_tuples_spcat_2(source_span): 
+                        
+                        if entry: 
+                            final_text = preprocess_text(source_span.text)
+                            claim_count += 1
+                            annotations = entry
+                            data = ((final_text, annotations))
+                            train_data.append(data)
+    for data in train_data: 
+        print(f"\n\n{data}\n\n")
+    return train_data
+
+# retrieves training data with token offsets
 def get_training_list_spcat(): 
     train_data = [] # add tuples here
     final_text = "" # add entire claim sentence here
@@ -238,7 +285,7 @@ def get_training_list_ner():
     claim_count = 0
     sent_count = 0
     seen_sents = []
-    for doc in nlp.pipe(pull_all_files()): 
+    for doc in nlp.pipe(pull_n_files(10)): 
         sent_count += len(list(doc.sents))
         
         for ent in doc.ents:
@@ -278,7 +325,7 @@ def get_new_token_offset(token, sent):
 # !!!!!!!!!!!!!
 
 
-# start = 
+# gets spans based on token offsets
 def get_tuples_spcat(sent): 
     source_start, source_end = 0, 0
     verb_start, verb_end = 0, 0
@@ -370,6 +417,96 @@ def get_tuples_spcat(sent):
                                 }
                             }
 
+
+# gets spans based on char offsets 
+def get_tuples_spcat_2(sent):
+    source_start, source_end = 0, 0
+    verb_start, verb_end = 0, 0
+    content_start, content_end = 0, 0
+    claim_mod_start, claim_mod_end = 0, 0
+    claim_mod = ""
+    
+
+    for source in sent.ents: 
+
+        if source.label_ in target_sources: 
+            
+            # NOTE: dont think i need these
+            # new start of sentence offset 
+            sent_start = sent.end_char - sent.end_char 
+            sent_end = sent.end_char - sent.start_char
+
+            # new start of entity offset 
+            source_start = source.start_char - sent.start_char
+            source_end = source.end_char - sent.start_char
+            # source_start = ent_start
+            # source_end = ent_end
+          
+            # NOTE: we have found a valid claim
+            for a in source.root.ancestors: 
+                if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
+                    
+                    verb = a
+                  
+                    verb_start, verb_end = get_new_token_offset(verb, sent)
+
+                    # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
+                    # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
+                    advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_ and j.i == a.i - 1]
+                
+                    # build claim_mod modifier
+                    if advmod: 
+                        advmod = advmod.pop()
+                        claim_mod = advmod
+                        claim_mod_start, claim_mod_end = get_new_token_offset(claim_mod, sent)
+                        claim_mod = advmod.text
+
+                        # get content span and offset with claim_mod included
+                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and j.i > advmod.i and not j.is_punct]
+                    else: 
+                        # get content span and offset
+                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
+                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
+                 
+                    testing_tuple = [source.text, verb.text, testing_content_text, claim_mod]
+                   
+                    if len(content_offsets) >= 2: 
+                        content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
+                        
+                        overlaps = [flag for flag in list((
+                                    (overlap(source_start, source_end, content_start, content_end)), 
+                                    (overlap(content_start, content_end, verb_start, verb_end))))
+                                    if flag == True]
+                        
+                        if not overlaps: 
+                        
+                            new_sent = sent.text
+                          
+                            starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
+                            
+                            ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                            if claim_mod: 
+                            
+                                yield {
+                                    "spans": {
+                                        "sc": [
+                                            (source_start, source_end, "SOURCE"),
+                                            (verb_start, verb_end, "CLAIM_VERB"),
+                                            (content_start, content_end, "CLAIM_CONTENTS"),
+                                            (claim_mod_start, claim_mod_end, "CLAIM_MOD")
+                                        ]
+                                    }
+                                }
+                            else: 
+                                yield {
+                                    "spans": {
+                                        "sc": [
+                                            (source_start, source_end, "SOURCE"),
+                                            (verb_start, verb_end, "CLAIM_VERB"),
+                                            (content_start, content_end, "CLAIM_CONTENTS")
+                                        ]
+                                    }
+                                }
 # get tuples from a target sentence
 # sentence: a span that contains the ent, sources: a list of target sources
 def get_tuples_ner(sent):

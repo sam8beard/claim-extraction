@@ -1,3 +1,4 @@
+from spacy.pipeline.spancat import DEFAULT_SPANCAT_MODEL
 from pathlib import Path
 import spacy 
 import re
@@ -17,7 +18,7 @@ from utils.pull_text import preprocess_text
 from spacy.language import Language, Doc
 import logging 
 import sys 
-from nlp_pipeline import get_training_list_ner, get_training_list_spcat, claim_verb_terms, claim_mod_terms
+from nlp_pipeline import get_training_list_ner, get_training_list_spcat, claim_verb_terms, claim_mod_terms, get_training_list_spcat_2
 from spacy.training.example import Example
 import random
 from spacy.training import offsets_to_biluo_tags
@@ -31,6 +32,7 @@ from spacy import registrations
 from thinc.api import Config
 from spacy.lang.en import English
 from spacy.util import load_config
+from tqdm import tqdm 
 
 # configure logger for testing
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
@@ -266,12 +268,12 @@ def fine_tune_spcat():
     # nlp = spacy.Language.from_config(config)
     # nlp.from_config(config_path="config.cfg")
     # nlp = spacy.load("./config.cfg")
-    config_path = Path("./config.cfg")
-    config = load_config(config_path)
+    # config_path = Path("./config.cfg")
+    # config = load_config(config_path)
     # config = config.to_bytes
     # nlp = spacy.load("en_core_web_sm")
     # nlp = spacy.load(config)
-    nlp = spacy.blank(name="en", config=config)
+    nlp = spacy.blank('en')
     # nlp = spacy.load("en_core_web_sm")
     logging.info(nlp.component_names)
 
@@ -287,71 +289,116 @@ def fine_tune_spcat():
     
     spancat_config = {
             "spans_key": "sc",
-            "suggester": {"@misc": "claim_suggester.v1"}
+            "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 20},
+            "threshold": 0.8,
+            "max_positive": None, 
+            "model": DEFAULT_SPANCAT_MODEL,
+            # "training": {
+            #     "frozen_components": [
+            #         "tok2vec","tagger","parser","attribute_ruler", "ner"
+            #     ],
+            #     "annotating_components": [
+            #         "tok2vec","tagger","parser","attribute_ruler", "ner"
+            #     ]
+            # } 
+
+
     }
 
     
-    spancat = nlp.add_pipe("spancat", config=spancat_config)
+    nlp.add_pipe("spancat", config=spancat_config)
+    spancat = nlp.get_pipe('spancat')
     logging.info(nlp.component_names)
 
     for label in labels: spancat.add_label(label)
 
+    pipe_exceptions = ["spancat"]
+    unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
+    
+    nlp.initialize()
+    sgd = nlp.create_optimizer()
+
     # convert training data to Examples
     # training_data = balance_training_data(get_training_list_spcat())
-    training_data = get_training_list_spcat()
+    
+    # NOTE: trying other training list function that returns char offsets
+    #
+    #       get_training_list_spcat returns TOKEN offsets, but Example.from_dict()
+    #       expects CHAR offsets
+    # training_data = get_training_list_spcat()
+
+    training_data = get_training_list_spcat_2()
     examples = []
     
     for text, annots in training_data: 
-        # with nlp.select_pipes(disable="spancat"):
-        # print(text)
-        # print(annots)
         doc = nlp.make_doc(text)
+        logging.info(len(doc))
+        logging.info(text)
+        logging.info(annots)
+
+        # NOTE: issue here with token indices not aligning
         examples.append(Example.from_dict(doc, annots))
-        # # logging.info(text)
-        # # logging.info(annots) 
-        # # logging.info(len(doc))
-        # # doc.spans["sc"] = annots["spans"]
-        # # logging.info(annots["spans"]["sc"])
-        # spans_to_add = []
-        # for span in annots["spans"]["sc"]:
-        #     (start, end, label) = span
-        #     # logging.info(f"{start}, {end}, {label}") 
-        #     new_span = Span(doc, start, end, label)
-        #     spans_to_add.append(new_span)
-        #     # logging.info(f"New span: {new_span}")
-        #     # spans_to_add.append(new_span)
-        # # logging.info(spans_to_add)
-        # # logging.info(doc.spans["sc"])
-        # # for token in doc: 
-        # #     logging.info(f"{token.text}, {token.i}")
-        # logging.info(f"Spans object: {doc.spans}")
-        # doc.spans["sc"] = spans_to_add
-        # span_dict = {"spans": {"sc": spans_to_add}}
-        # logging.info(span_dict)
-        # logging.info(f"Spans key object: {doc.spans['sc']}")
-        # # print(annots)
-        # # examples.append(Example.from_dict(doc, {}))
-        # new_doc = nlp.make_doc(text)
-        # examples.append(Example.from_dict(new_doc, annots))
 
-    logging.info(f"Examples after processing: {examples[0:5]}")
-    # initialize model after adding labels and before training 
+    with nlp.disable_pipes(*unaffected_pipes): 
+        for itn in tqdm(range(40)):
+            random.shuffle(examples)
+            losses = {}
+            batches = spacy.util.minibatch(examples, size=spacy.util.compounding(4.0, 32.0, 1.001))
+
+            for batch in batches: 
+                nlp.update(batch, losses=losses, drop= 0.1, sgd=sgd)
+            logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
+    #     for text, annots in training_data: 
+    #         # with nlp.select_pipes(disable="spancat"):
+    #         # print(text)
+    #         # print(annots)
+    #         doc = nlp.make_doc(text)
+    #         examples.append(Example.from_dict(doc, annots))
+    #         # # logging.info(text)
+    #         # # logging.info(annots) 
+    #         # # logging.info(len(doc))
+    #         # # doc.spans["sc"] = annots["spans"]
+    #         # # logging.info(annots["spans"]["sc"])
+    #         # spans_to_add = []
+    #         # for span in annots["spans"]["sc"]:
+    #         #     (start, end, label) = span
+    #         #     # logging.info(f"{start}, {end}, {label}") 
+    #         #     new_span = Span(doc, start, end, label)
+    #         #     spans_to_add.append(new_span)
+    #         #     # logging.info(f"New span: {new_span}")
+    #         #     # spans_to_add.append(new_span)
+    #         # # logging.info(spans_to_add)
+    #         # # logging.info(doc.spans["sc"])
+    #         # # for token in doc: 
+    #         # #     logging.info(f"{token.text}, {token.i}")
+    #         # logging.info(f"Spans object: {doc.spans}")
+    #         # doc.spans["sc"] = spans_to_add
+    #         # span_dict = {"spans": {"sc": spans_to_add}}
+    #         # logging.info(span_dict)
+    #         # logging.info(f"Spans key object: {doc.spans['sc']}")
+    #         # # print(annots)
+    #         # # examples.append(Example.from_dict(doc, {}))
+    #         # new_doc = nlp.make_doc(text)
+    #         # examples.append(Example.from_dict(new_doc, annots))
+
+    # logging.info(f"Examples after processing: {examples[0:5]}")
+    # # initialize model after adding labels and before training 
  
-    optimizer = nlp.initialize()
+    # optimizer = nlp.initialize()
    
-    epochs = 30
-    for itn in range(epochs): 
-        random.shuffle(examples)
-        losses = {}
-        batches = spacy.util.minibatch(examples, size=4)
-        # for batch in batches: 
-        #     nlp.update(batch, drop=0.2, losses=losses)
-        for batch in batches: 
+    # epochs = 30
+    # for itn in range(epochs): 
+    #     random.shuffle(examples)
+    #     losses = {}
+    #     batches = spacy.util.minibatch(examples, size=4)
+    #     # for batch in batches: 
+    #     #     nlp.update(batch, drop=0.2, losses=losses)
+    #     for batch in batches: 
 
-            # logging.info(f"Text: {example.text}")
-            spancat.update(batch, drop=0.2, losses=losses, sgd=optimizer)
-        logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
-    logging.info(f"Number of examples processed: {len(training_data)}")
+    #         # logging.info(f"Text: {example.text}")
+    #         spancat.update(batch, drop=0.2, losses=losses, sgd=optimizer)
+    #     logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
+    # logging.info(f"Number of examples processed: {len(training_data)}")
 
     nlp.to_disk('spancat_v1.0')
 
@@ -379,13 +426,59 @@ def test_suggester():
     
     # logging.info(f"Results: {result}")
 
+# testing custom ner model
+def see_results_ner(): 
+    nlp_updated = spacy.load("ner_v1.0")
+    num = 40
+    for file in pull_n_files(num): 
+        doc = nlp_updated(file)
+        results = [(ent.label_, ent.text) for ent in doc.ents]
+    
+        for result in results: 
+            pprint.pprint(f"{result}\n\n")
+
+# testing custom spancat model
+def see_results_spcat(): 
+    nlp_updated = spacy.load("spancat_v1.0")
+    num = 5
+    results = []
+    label_counts = {"SOURCE": 0, "CLAIM_VERB": 0, "CLAIM_CONTENTS": 0, "CLAIM_MOD": 0}
+    for file in pull_n_files(num):
+        doc = nlp_updated(file)
+        # for span in doc.spans['sc']: 
+        #     if span.label_ == "SOURCE": 
+        #         logging.info(f"\n\nSource Found: {span.text}")
+        #         source_count += 1
+        #     elif span.label_ == "CLAIM_VERB"
+        logging.info("Doc Results -------------------------------\n")
+        spans = doc.spans['sc']
+        for span, confidence in zip(spans, spans.attrs["scores"]):
+            label_counts[span.label_] += 1
+            logging.info(f"{span.label_} | {confidence} | {span.text}")
+        # for span in doc.spans['sc']: 
+        #     if span.label_ == "SOURCE": 
+        #         logging.info(f"\n\nSource Found: {span.text}")
+        #         source_count += 1
+
+            # logging.info(f"\n\nSpan: \n{span}\nSpan Label: {span.label_}\n")
+        # logging.info(f"\n\nSOURCE count: {source_count}")
+        
+        print(f"\n\n")
+    pprint.pprint(label_counts)
+        # results = [(ent.label_, ent.text) for ent in doc.ents]
+
+    # for result in results: 
+    #     pprint.pprint(f"{result}\n\n")
+    # logging.info("Firing")
 
 # test_suggester()
 # see_results()
 # debug()
 # fine_tune_ner()
 # see_results()
+# get_training_list_spcat_2() 
 fine_tune_spcat()
+# see_results_spcat()
 # print_label_count()
 # see_results_spcat()
 # align_offsets_to_tokens()
@@ -424,16 +517,6 @@ fine_tune_spcat()
 #     logging.info(f"Claims: {claim_count}")
 #     logging.info(f"Valid claims: {valid_count}")
 
-# def see_results_ner(): 
-#     nlp_updated = spacy.load("ner_v1.0")
-#     # doc = nlp_updated(pull_one_file())
-#     num = 40
-#     for file in pull_n_files(num): 
-#         doc = nlp_updated(file)
-#         results = [(ent.label_, ent.text) for ent in doc.ents]
-    
-#         for result in results: 
-#             pprint.pprint(f"{result}\n\n")
 
 
 # for next model, try 40 epochs, drop=0.35, optimizer.learn_rate = 0.0005
