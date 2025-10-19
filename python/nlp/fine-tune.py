@@ -274,7 +274,13 @@ def fine_tune_spcat():
     # nlp = spacy.load("en_core_web_sm")
     # nlp = spacy.load(config)
 
-    # add components to frozen and annotating lists for custom suggester
+    # load pretrained model to access components
+    base_nlp = spacy.load('en_core_web_sm')
+
+    # create config to add components to frozen and annotating lists for custom suggester
+    # NOTE: might need to add additional configurations to this config since 
+    #       we are using a custom config, 
+    # NOTE: nlp.update()
     training_config = { 
         "training": { 
             "frozen_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"],
@@ -282,8 +288,8 @@ def fine_tune_spcat():
         }
     }
 
+    # add config with training member configured
     nlp = spacy.blank('en', config=training_config)
-    base_nlp = spacy.load('en_core_web_sm')
     
     # add components to blank model sourced from en_core_web_sm
     for name in ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"]:
@@ -292,27 +298,8 @@ def fine_tune_spcat():
             source = base_nlp
         )
     
-    
-        # comp_name = name
-        # logging.info("firing")
-        # logging.info(base_nlp.get_pipe(name).model)
-        # comp = base_nlp.get_pipe(name)
-        # nlp.add_pipe(base_nlp.get_pipe(comp).model, name=comp)
-    
 
-    # nlp = spacy.load("en_core_web_sm")
-    # logging.info(nlp.component_names)
-
-    # PATH FORWARD
-    # have to figure out how to build config so the the frozen and annot components used in training
-    # span cat are sourced from en_core_web_sm 
-
-
-    # nlp.
-    # config = { 
-    #     "nlp": 
-    # }
-
+    # create config for spancat component
     spancat_config = {
             "spans_key": "sc",
             "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 20},
@@ -337,20 +324,16 @@ def fine_tune_spcat():
     
     nlp.add_pipe("spancat", config=spancat_config)
     spancat = nlp.get_pipe('spancat')
-    # nlp.analyze_pipes(pretty=True)
-    pprint.pprint(nlp.config)
-    # logging.info(nlp.analyze_pipes(pretty=True))
-    # logging.info(spancat.getmembers())
-    # nlp.add_pipe("training")
-    # logging.info(nlp.training)
-    return
-
+  
     for label in labels: spancat.add_label(label)
 
     pipe_exceptions = ["spancat"]
     unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
     
+    # initialize model
     nlp.initialize()
+
+    # create optimizer
     sgd = nlp.create_optimizer()
 
     # convert training data to Examples
@@ -362,18 +345,20 @@ def fine_tune_spcat():
     #       expects CHAR offsets
     # training_data = get_training_list_spcat()
 
+    # get training data
     training_data = get_training_list_spcat_2()
     examples = []
     
+    # create examples from training data
     for text, annots in training_data: 
         doc = nlp.make_doc(text)
         logging.info(len(doc))
         logging.info(text)
         logging.info(annots)
 
-        # NOTE: issue here with token indices not aligning
         examples.append(Example.from_dict(doc, annots))
 
+    # train spancat model
     with nlp.disable_pipes(*unaffected_pipes): 
         for itn in tqdm(range(40)):
             random.shuffle(examples)
@@ -512,8 +497,8 @@ def see_results_spcat():
 # fine_tune_ner()
 # see_results()
 # get_training_list_spcat_2() 
-fine_tune_spcat()
-# see_results_spcat()
+# fine_tune_spcat()
+see_results_spcat()
 # print_label_count()
 # see_results_spcat()
 # align_offsets_to_tokens()
