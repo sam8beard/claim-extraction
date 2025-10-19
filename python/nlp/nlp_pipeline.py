@@ -196,9 +196,9 @@ def get_training_list_spcat_2():
     claim_count = 0
     sent_count = 0
     seen_sents = []
-    for doc in nlp.pipe(pull_all_files()): 
+    # for doc in nlp.pipe(pull_all_files()): 
     # testing
-    # for doc in nlp.pipe(pull_n_files(30)):
+    for doc in nlp.pipe(pull_n_files(5)):
         sent_count += len(list(doc.sents))
         
         for ent in doc.ents:

@@ -273,9 +273,34 @@ def fine_tune_spcat():
     # config = config.to_bytes
     # nlp = spacy.load("en_core_web_sm")
     # nlp = spacy.load(config)
-    nlp = spacy.blank('en')
+
+    # add components to frozen and annotating lists for custom suggester
+    training_config = { 
+        "training": { 
+            "frozen_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"],
+            "annotating_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"]
+        }
+    }
+    nlp = spacy.blank('en', config=training_config)
+    base_nlp = spacy.load('en_core_web_sm')
+    
+    # add components to blank model sourced from en_core_web_sm
+    for name in ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"]:
+        nlp.add_pipe( 
+            name, 
+            source = base_nlp
+        )
+    
+    
+        # comp_name = name
+        # logging.info("firing")
+        # logging.info(base_nlp.get_pipe(name).model)
+        # comp = base_nlp.get_pipe(name)
+        # nlp.add_pipe(base_nlp.get_pipe(comp).model, name=comp)
+    
+
     # nlp = spacy.load("en_core_web_sm")
-    logging.info(nlp.component_names)
+    # logging.info(nlp.component_names)
 
     # PATH FORWARD
     # have to figure out how to build config so the the frozen and annot components used in training
@@ -286,13 +311,16 @@ def fine_tune_spcat():
     # config = { 
     #     "nlp": 
     # }
-    
+
     spancat_config = {
             "spans_key": "sc",
             "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 20},
             "threshold": 0.8,
             "max_positive": None, 
+            # "frozen_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
+            # "annotating_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
             "model": DEFAULT_SPANCAT_MODEL,
+            
             # "training": {
             #     "frozen_components": [
             #         "tok2vec","tagger","parser","attribute_ruler", "ner"
@@ -308,7 +336,13 @@ def fine_tune_spcat():
     
     nlp.add_pipe("spancat", config=spancat_config)
     spancat = nlp.get_pipe('spancat')
-    logging.info(nlp.component_names)
+    nlp.analyze_pipes(pretty=True)
+    logging.info(nlp.config)
+    # logging.info(nlp.analyze_pipes(pretty=True))
+    # logging.info(spancat.getmembers())
+    # nlp.add_pipe("training")
+    # logging.info(nlp.training)
+    return
 
     for label in labels: spancat.add_label(label)
 
