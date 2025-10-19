@@ -281,6 +281,7 @@ def fine_tune_spcat():
             "annotating_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"]
         }
     }
+
     nlp = spacy.blank('en', config=training_config)
     base_nlp = spacy.load('en_core_web_sm')
     
@@ -336,8 +337,8 @@ def fine_tune_spcat():
     
     nlp.add_pipe("spancat", config=spancat_config)
     spancat = nlp.get_pipe('spancat')
-    nlp.analyze_pipes(pretty=True)
-    logging.info(nlp.config)
+    # nlp.analyze_pipes(pretty=True)
+    pprint.pprint(nlp.config)
     # logging.info(nlp.analyze_pipes(pretty=True))
     # logging.info(spancat.getmembers())
     # nlp.add_pipe("training")
