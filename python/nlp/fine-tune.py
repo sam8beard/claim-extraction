@@ -33,6 +33,7 @@ from thinc.api import Config
 from spacy.lang.en import English
 from spacy.util import load_config
 from tqdm import tqdm 
+import re
 
 # configure logger for testing
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
@@ -472,21 +473,30 @@ def see_results_spcat():
     # NOTE
     # either this just takes up a ton of memory or using tqdm 
     # is a massive memory sink
+
+    # NOTE
+    # modify this loop to yield chunks of text (sentences?) instead of whole files
     for file in tqdm(pull_n_files(num), bar_format='{l_bar}{bar:20}{r_bar}', total=num, desc="Processing file..."):
         # NOTE
         # if we want to get the file name, we can retrieve the base of the url
         # or the whole key or whatever
-        doc = nlp_updated(file)
-        # for span in doc.spans['sc']: 
-        #     if span.label_ == "SOURCE": 
-        #         logging.info(f"\n\nSource Found: {span.text}")
-        #         source_count += 1
-        #     elif span.label_ == "CLAIM_VERB"
-        # logging.info("Doc Results -------------------------------\n")
-        spans = doc.spans['sc']
-        for span, confidence in zip(spans, spans.attrs["scores"]):
-            label_counts[span.label_] += 1
-            label_texts[span.label_].append((span.text, confidence))
+
+        # split file up into sentences
+        sents = re.split(r'(?<=[.!?])\s+', file)
+
+        for sent in sents: 
+            doc = nlp_updated(sent)               
+        
+            # for span in doc.spans['sc']: 
+            #     if span.label_ == "SOURCE": 
+            #         logging.info(f"\n\nSource Found: {span.text}")
+            #         source_count += 1
+            #     elif span.label_ == "CLAIM_VERB"
+            # logging.info("Doc Results -------------------------------\n")
+            spans = doc.spans['sc']
+            for span, confidence in zip(spans, spans.attrs["scores"]):
+                label_counts[span.label_] += 1
+                label_texts[span.label_].append((span.text, confidence))
 
         # for span in spans: 
         #     label_counts[span.label_] += 1
@@ -503,12 +513,13 @@ def see_results_spcat():
         # logging.info(f"\n\nSOURCE count: {source_count}")
         
         print(f"\n\n")
+    
+
+    # print("\nFINAL SPANS:")
+    # pprint.pprint(label_texts)
+
     print("\nFINAL LABEL COUNTS:")
     pprint.pprint(label_counts)
-
-    print("\nFINAL SPANS:")
-    pprint.pprint(label_texts)
-
 
 
     # doc = nlp_updated("OpenAI, among other corporatations, explicitly states that AI is without a doubt useful.")
