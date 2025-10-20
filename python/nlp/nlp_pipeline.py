@@ -198,7 +198,7 @@ def get_training_list_spcat_2():
     seen_sents = []
     for doc in nlp.pipe(pull_all_files()): 
     # testing
-    # for doc in nlp.pipe(pull_n_files(30)):
+    # for doc in nlp.pipe(pull_n_files(5)):
         sent_count += len(list(doc.sents))
         
         for ent in doc.ents:
@@ -478,35 +478,55 @@ def get_tuples_spcat_2(sent):
                                     (overlap(content_start, content_end, verb_start, verb_end))))
                                     if flag == True]
                         
+                        
                         if not overlaps: 
                         
-                            new_sent = sent.text
+                            # new_sent = sent.text
                           
-                            starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
+                            # starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
                             
-                            ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                            # ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                            invalid_span = []
+                            
                             if claim_mod: 
-                            
-                                yield {
-                                    "spans": {
-                                        "sc": [
-                                            (source_start, source_end, "SOURCE"),
-                                            (verb_start, verb_end, "CLAIM_VERB"),
-                                            (content_start, content_end, "CLAIM_CONTENTS"),
-                                            (claim_mod_start, claim_mod_end, "CLAIM_MOD")
-                                        ]
+                                starts = [source_start, verb_start, content_start, claim_mod_start]
+                                ends = [source_end, verb_end, content_end, claim_mod_end]
+                                for start, end in zip(starts, ends): 
+                                    if not is_valid_span(start, end):
+                                        invalid_span.append(is_valid_span(start, end))
+                                if not invalid_span: 
+                                    yield {
+                                        "spans": {
+                                            "sc": [
+                                                (source_start, source_end, "SOURCE"),
+                                                (verb_start, verb_end, "CLAIM_VERB"),
+                                                (content_start, content_end, "CLAIM_CONTENTS"),
+                                                (claim_mod_start, claim_mod_end, "CLAIM_MOD")
+                                            ]
+                                        }
                                     }
-                                }
                             else: 
-                                yield {
-                                    "spans": {
-                                        "sc": [
-                                            (source_start, source_end, "SOURCE"),
-                                            (verb_start, verb_end, "CLAIM_VERB"),
-                                            (content_start, content_end, "CLAIM_CONTENTS")
-                                        ]
+                                starts = [source_start, verb_start, content_start]
+                                ends = [source_end, verb_end, content_end]
+                                for start, end in zip(starts, ends): 
+                                    if not is_valid_span(start, end):
+                                        invalid_span.append(is_valid_span(start, end))
+                                if not invalid_span: 
+                                    yield {
+                                        "spans": {
+                                            "sc": [
+                                                (source_start, source_end, "SOURCE"),
+                                                (verb_start, verb_end, "CLAIM_VERB"),
+                                                (content_start, content_end, "CLAIM_CONTENTS")
+                                            ]
+                                        }
                                     }
-                                }
+
+
+# check to see if span is valid (start < end)
+def is_valid_span(start, end): 
+    return start < end
+
 # get tuples from a target sentence
 # sentence: a span that contains the ent, sources: a list of target sources
 def get_tuples_ner(sent):

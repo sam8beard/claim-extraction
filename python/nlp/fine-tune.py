@@ -289,8 +289,8 @@ def fine_tune_spcat():
     
     spancat_config = {
             "spans_key": "sc",
-            "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 20},
-            "threshold": 0.8,
+            "suggester": {"@misc": "spacy.ngram_range_suggester.v1", "min_size": 1, "max_size": 30},
+            "threshold": 0.6,
             "max_positive": None, 
             "model": DEFAULT_SPANCAT_MODEL,
             # "training": {
@@ -300,9 +300,7 @@ def fine_tune_spcat():
             #     "annotating_components": [
             #         "tok2vec","tagger","parser","attribute_ruler", "ner"
             #     ]
-            # } 
-
-
+            # }
     }
 
     
@@ -331,22 +329,48 @@ def fine_tune_spcat():
     examples = []
     
     for text, annots in training_data: 
+        # logging.info("Firing")
+        # logging.info(text)
+        # logging.info(annots['spans']['sc'])
+        # for tup in annots['spans']['sc']:
+        #     if "CLAIM_MOD" in tup: 
+                # we have found a doc with a claim mod
+                # multiply this example by 8
+                # logging.info("Found claim mod")
+                # annots['spans']['sc'].extend(((tup)) * 8)
+                # print(annots['spans']['sc'])
+
         doc = nlp.make_doc(text)
-        logging.info(len(doc))
-        logging.info(text)
-        logging.info(annots)
+        
+        # doc = nlp.make_doc(text)
+        # logging.info(len(doc))
+        # logging.info(text)
+        # logging.info(annots)
 
-        # NOTE: issue here with token indices not aligning
-        examples.append(Example.from_dict(doc, annots))
-
+        # NOTE
+        # find a way to oversample claim_mod tuples
+        for tup in annots['spans']['sc']:
+            # balance training data — if claim mod in example, multiply
+            if "CLAIM_MOD" in tup: 
+                logging.info("Claim mod found")
+                new_annots = {'spans':{'sc': [tup]}}
+                # logging.info(new_annots)
+                # logging.info(annots)
+                balanced_list = [Example.from_dict(doc,new_annots)] * 8
+                # logging.info(balanced_list)
+                examples.extend(balanced_list)
+                # examples.extend([Example.from_dict(doc, annots)] * 8)
+            else: 
+                examples.append(Example.from_dict(doc, annots))
+    # return
     with nlp.disable_pipes(*unaffected_pipes): 
-        for itn in tqdm(range(40)):
+        for itn in tqdm(range(50)):
             random.shuffle(examples)
             losses = {}
-            batches = spacy.util.minibatch(examples, size=spacy.util.compounding(4.0, 32.0, 1.001))
+            batches = spacy.util.minibatch(examples, size=spacy.util.compounding(8.0, 32.0, 1.001))
 
             for batch in batches: 
-                nlp.update(batch, losses=losses, drop= 0.1, sgd=sgd)
+                nlp.update(batch, losses=losses, drop= 0.2, sgd=sgd)
             logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
     #     for text, annots in training_data: 
     #         # with nlp.select_pipes(disable="spancat"):
@@ -441,20 +465,35 @@ def see_results_ner():
 def see_results_spcat(): 
     nlp_updated = spacy.load("spancat_v1.0")
     num = 5
-    results = []
+
     label_counts = {"SOURCE": 0, "CLAIM_VERB": 0, "CLAIM_CONTENTS": 0, "CLAIM_MOD": 0}
-    for file in pull_n_files(num):
+    label_texts = {"SOURCE": [], "CLAIM_VERB": [], "CLAIM_CONTENTS": [], "CLAIM_MOD": []}
+
+    # NOTE
+    # either this just takes up a ton of memory or using tqdm 
+    # is a massive memory sink
+    for file in tqdm(pull_n_files(num), bar_format='{l_bar}{bar:20}{r_bar}', total=num, desc="Processing file..."):
+        # NOTE
+        # if we want to get the file name, we can retrieve the base of the url
+        # or the whole key or whatever
         doc = nlp_updated(file)
         # for span in doc.spans['sc']: 
         #     if span.label_ == "SOURCE": 
         #         logging.info(f"\n\nSource Found: {span.text}")
         #         source_count += 1
         #     elif span.label_ == "CLAIM_VERB"
-        logging.info("Doc Results -------------------------------\n")
+        # logging.info("Doc Results -------------------------------\n")
         spans = doc.spans['sc']
         for span, confidence in zip(spans, spans.attrs["scores"]):
             label_counts[span.label_] += 1
-            logging.info(f"{span.label_} | {confidence} | {span.text}")
+            label_texts[span.label_].append((span.text, confidence))
+
+        # for span in spans: 
+        #     label_counts[span.label_] += 1
+        # displacy.render(doc, style="span")
+        pprint.pprint(label_counts)
+            
+            # logging.info(f"{span.label_} | {confidence} | {span.text}")
         # for span in doc.spans['sc']: 
         #     if span.label_ == "SOURCE": 
         #         logging.info(f"\n\nSource Found: {span.text}")
@@ -464,7 +503,20 @@ def see_results_spcat():
         # logging.info(f"\n\nSOURCE count: {source_count}")
         
         print(f"\n\n")
+    print("\nFINAL LABEL COUNTS:")
     pprint.pprint(label_counts)
+
+    print("\nFINAL SPANS:")
+    pprint.pprint(label_texts)
+
+
+
+    # doc = nlp_updated("OpenAI, among other corporatations, explicitly states that AI is without a doubt useful.")
+    # doc = nlp_updated("Google argues the existence of super intelligence.")
+    # scores = nlp_updated.get_pipe("spancat").predict([doc, doc2])
+    # pprint.pprint(scores)
+
+    # displacy.serve(doc, style="span", auto_select_port=True)
         # results = [(ent.label_, ent.text) for ent in doc.ents]
 
     # for result in results: 
