@@ -179,24 +179,32 @@ def build_claim_suggester() -> Suggester:
         spans = []
         lengths = []
         for doc in docs: 
-            for token in doc: 
-                logging.info(token.text)
+            logging.info(doc.text)
             if doc.has_annotation("DEP"):
-                logging.info("Firing Here")
+                # logging.info(doc.text)
+                logging.info("Dep found")
                 claims = []
                 
                 # begin looking for claims based off of existence of valid source
                 for ent in doc.ents:
-                    logging.info("Firing here")
-                   
+                    # logging.info("Ent found")
+                    
                     source_tuple = None
                     verb_tuple = None
                     mod_tuple = None
                     content_tuple = None
                     if ent.label_ in target_sources: 
                         source_tuple = (ent.start, ent.end)
-                        logging.info(source_tuple)
+                        # logging.info(source_tuple)
                         # logging.info(source_tuple) # not firing
+                        # logging.info(f"Ancestors of ent: {[a for a in ent.root.ancestors]}")
+                        logging.info(f"Ent: {ent.label_}")
+                        logging.info(f"Root of ent: {ent.root}")
+                        ancestors = [a for a in ent.root.ancestors]
+                        logging.info(f"Ancestors of ent root: {ancestors}")
+
+                        # NOTE: ANCESTORS IS EMPTY FOR EACH TOKEN
+                        # dependency parser 
                         for a in ent.root.ancestors:
                             # need to reference claim_verb_terms
                             logging.info(a.lemma_)
@@ -237,27 +245,28 @@ def build_claim_suggester() -> Suggester:
                                     claims.append(verb_tuple)
                                     claims.append(mod_tuple)
                                     claims.append(content_tuple)
+                                    
 
                                 elif source_tuple and verb_tuple and content_tuple and not mod_tuple: 
                                     claims.append(source_tuple)
                                     claims.append(verb_tuple)
                                     claims.append(content_tuple)
+                logging.info(f"{claims}\n")
                 claims = ops.asarray(claims, dtype="i")
                 if claims.shape[0] > 0: 
                         spans.append(claims)
                         lengths.append(claims.shape[0])
                 else: 
-                    logging.info("Does not have DEP")
                     lengths.append(0)
             else: 
                 lengths.append(0)
+           
         lengths_array = cast(Ints1d, ops.asarray(lengths, dtype="i"))
         if len(spans) > 0: 
             output = Ragged(ops.xp.vstack(spans), lengths_array)
         else: 
             output = Ragged(ops.xp.zeros((0,0), dtype="i"), lengths_array)
         assert output.dataXd.ndim == 2
-    
         return output
     
     return claim_suggester
@@ -276,58 +285,85 @@ def fine_tune_spcat():
     # nlp = spacy.load(config)
 
     # load pretrained model to access components
-    base_nlp = spacy.load('en_core_web_sm')
+    # base_nlp = spacy.load('en_core_web_sm')
 
     # create config to add components to frozen and annotating lists for custom suggester
     # NOTE: might need to add additional configurations to this config since 
     #       we are using a custom config, 
     # NOTE: nlp.update() configures this training config, might have to initialize other members
-    training_config = { 
+    config = { 
+        "nlp": {
+            "pipeline": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner", "spancat"],
+            "tokenizer": {"@tokenizers": "spacy.Tokenizer.v1"},
+        },
+        # "tokenizer": []
+        "components": { 
+            "tok2vec": {"source": "en_core_web_sm"},
+            "tagger": {"source": "en_core_web_sm"},
+            "parser": {"source": "en_core_web_sm"},
+            "attribute_ruler": {"source": "en_core_web_sm"},
+            "ner": {"source": "en_core_web_sm"},
+            "spancat": { 
+                "factory": "spancat",
+                "spans_key": "sc",
+                "suggester": {"@misc": "claim_suggester.v1"},
+                "threshold": 0.8,
+                "max_positive": None, 
+                # "frozen_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
+                # "annotating_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
+                "model": DEFAULT_SPANCAT_MODEL,
+            }
+        },
         "training": { 
             "frozen_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"],
-            "annotating_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"]
+            "annotating_components": ["tok2vec","tagger","parser","attribute_ruler", "ner"],
+
+            "max_epochs": 100
         }
     }
 
     # add config with training member configured
-    nlp = spacy.blank('en', config=training_config)
+    nlp = spacy.blank("en", config=config)
     
     # add components to blank model sourced from en_core_web_sm
-    for name in ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"]:
-        nlp.add_pipe( 
-            name, 
-            source = base_nlp
-        )
+    # for name in ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"]:
+    #     nlp.add_pipe( 
+    #         name, 
+    #         source = base_nlp
+    #     )
     
 
     # create config for spancat component
-    spancat_config = {
-            "spans_key": "sc",
-            "suggester": {"@misc": "claim_suggester.v1"},
-            "threshold": 0.8,
-            "max_positive": None, 
-            # "frozen_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
-            # "annotating_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
-            "model": DEFAULT_SPANCAT_MODEL,
+    # spancat_config = {
+    #         "spans_key": "sc",
+    #         "suggester": {"@misc": "claim_suggester.v1"},
+    #         "threshold": 0.8,
+    #         "max_positive": None, 
+    #         # "frozen_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
+    #         # "annotating_components": ["tok2vec", "tagger", "parser", "attribute_ruler", "ner"],
+    #         "model": DEFAULT_SPANCAT_MODEL,
             
-            # "training": {
-            #     "frozen_components": [
-            #         "tok2vec","tagger","parser","attribute_ruler", "ner"
-            #     ],
-            #     "annotating_components": [
-            #         "tok2vec","tagger","parser","attribute_ruler", "ner"
-            #     ]
-            # } 
+    #         # "training": {
+    #         #     "frozen_components": [
+    #         #         "tok2vec","tagger","parser","attribute_ruler", "ner"
+    #         #     ],
+    #         #     "annotating_components": [
+    #         #         "tok2vec","tagger","parser","attribute_ruler", "ner"
+    #         #     ]
+    #         # } sdf
 
 
-    }
+    # }
 
     
-    nlp.add_pipe("spancat", config=spancat_config)
+    # nlp.add_pipe("spancat", config=spancat_config)
     spancat = nlp.get_pipe('spancat')
-    
-
+    # return
     for label in labels: spancat.add_label(label)
+    pprint.pprint(nlp.config)
+    return
+
+
 
     pipe_exceptions = ["spancat"]
     unaffected_pipes = [pipe for pipe in nlp.pipe_names if pipe not in pipe_exceptions]
@@ -338,90 +374,35 @@ def fine_tune_spcat():
     # create optimizer
     sgd = nlp.create_optimizer()
 
-    # convert training data to Examples
-    # training_data = balance_training_data(get_training_list_spcat())
+   
     
-    # NOTE: trying other training list function that returns char offsets
-    #
-    #       get_training_list_spcat returns TOKEN offsets, but Example.from_dict()
-    #       expects CHAR offsets
-    # training_data = get_training_list_spcat()
-
     # get training data
     training_data = get_training_list_spcat_2()
     examples = []
     
     # create examples from training data
     for text, annots in training_data: 
-        doc = nlp.make_doc(text)
-        # logging.info(len(doc))
-        # logging.info(text)
-        # logging.info(annots)
+        # logging.info("Firing hereeee")
+
+        doc = nlp(text)
+        # testing
+        # for ent in doc.ents: 
+        #     logging.info(f"Ancestors: {[a for a in ent.root.ancestors]}")
+        #     # return
 
         examples.append(Example.from_dict(doc, annots))
 
     # train spancat model
-    with nlp.disable_pipes(*unaffected_pipes): 
-        for itn in tqdm(range(40)):
-            random.shuffle(examples)
-            losses = {}
-            batches = spacy.util.minibatch(examples, size=spacy.util.compounding(4.0, 32.0, 1.001))
+    # with nlp.disable_pipes(*unaffected_pipes): 
+    for itn in tqdm(range(40)):
+        random.shuffle(examples)
+        losses = {}
+        batches = spacy.util.minibatch(examples, size=spacy.util.compounding(4.0, 32.0, 1.001))
 
-            for batch in batches: 
-                nlp.update(batch, losses=losses, drop= 0.1, sgd=sgd)
-            logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
-    #     for text, annots in training_data: 
-    #         # with nlp.select_pipes(disable="spancat"):
-    #         # print(text)
-    #         # print(annots)
-    #         doc = nlp.make_doc(text)
-    #         examples.append(Example.from_dict(doc, annots))
-    #         # # logging.info(text)
-    #         # # logging.info(annots) 
-    #         # # logging.info(len(doc))
-    #         # # doc.spans["sc"] = annots["spans"]
-    #         # # logging.info(annots["spans"]["sc"])
-    #         # spans_to_add = []
-    #         # for span in annots["spans"]["sc"]:
-    #         #     (start, end, label) = span
-    #         #     # logging.info(f"{start}, {end}, {label}") 
-    #         #     new_span = Span(doc, start, end, label)
-    #         #     spans_to_add.append(new_span)
-    #         #     # logging.info(f"New span: {new_span}")
-    #         #     # spans_to_add.append(new_span)
-    #         # # logging.info(spans_to_add)
-    #         # # logging.info(doc.spans["sc"])
-    #         # # for token in doc: 
-    #         # #     logging.info(f"{token.text}, {token.i}")
-    #         # logging.info(f"Spans object: {doc.spans}")
-    #         # doc.spans["sc"] = spans_to_add
-    #         # span_dict = {"spans": {"sc": spans_to_add}}
-    #         # logging.info(span_dict)
-    #         # logging.info(f"Spans key object: {doc.spans['sc']}")
-    #         # # print(annots)
-    #         # # examples.append(Example.from_dict(doc, {}))
-    #         # new_doc = nlp.make_doc(text)
-    #         # examples.append(Example.from_dict(new_doc, annots))
-
-    # logging.info(f"Examples after processing: {examples[0:5]}")
-    # # initialize model after adding labels and before training 
+        for batch in batches: 
+            nlp.update(batch, losses=losses, drop= 0.1, sgd=sgd)
+        logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
  
-    # optimizer = nlp.initialize()
-   
-    # epochs = 30
-    # for itn in range(epochs): 
-    #     random.shuffle(examples)
-    #     losses = {}
-    #     batches = spacy.util.minibatch(examples, size=4)
-    #     # for batch in batches: 
-    #     #     nlp.update(batch, drop=0.2, losses=losses)
-    #     for batch in batches: 
-
-    #         # logging.info(f"Text: {example.text}")
-    #         spancat.update(batch, drop=0.2, losses=losses, sgd=optimizer)
-    #     logging.info(f"Iteration: {itn + 1}, Losses: {losses}")
-    # logging.info(f"Number of examples processed: {len(training_data)}")
-
     nlp.to_disk('spancat_v1.0')
 
 # 
