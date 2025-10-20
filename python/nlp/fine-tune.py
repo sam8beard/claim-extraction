@@ -354,15 +354,12 @@ def fine_tune_spcat():
             # balance training data — if claim mod in example, multiply
             if "CLAIM_MOD" in tup: 
                 logging.info("Claim mod found")
-                new_annots = {'spans':{'sc': [tup]}}
-                # logging.info(new_annots)
-                # logging.info(annots)
-                balanced_list = [Example.from_dict(doc,new_annots)] * 8
-                # logging.info(balanced_list)
-                examples.extend(balanced_list)
+                
+                examples.extend([Example.from_dict(doc, annots) for _ in range(8)])
+                break
                 # examples.extend([Example.from_dict(doc, annots)] * 8)
-            else: 
-                examples.append(Example.from_dict(doc, annots))
+        else: 
+            examples.append(Example.from_dict(doc, annots))
     # return
     with nlp.disable_pipes(*unaffected_pipes): 
         for itn in tqdm(range(50)):
@@ -465,7 +462,7 @@ def see_results_ner():
 # testing custom spancat model
 def see_results_spcat(): 
     nlp_updated = spacy.load("spancat_v1.0")
-    num = 5
+    num = 15
 
     label_counts = {"SOURCE": 0, "CLAIM_VERB": 0, "CLAIM_CONTENTS": 0, "CLAIM_MOD": 0}
     label_texts = {"SOURCE": [], "CLAIM_VERB": [], "CLAIM_CONTENTS": [], "CLAIM_MOD": []}
@@ -474,16 +471,13 @@ def see_results_spcat():
     # either this just takes up a ton of memory or using tqdm 
     # is a massive memory sink
 
-    # NOTE
-    # modify this loop to yield chunks of text (sentences?) instead of whole files
     for file in tqdm(pull_n_files(num), bar_format='{l_bar}{bar:20}{r_bar}', total=num, desc="Processing file..."):
         # NOTE
         # if we want to get the file name, we can retrieve the base of the url
         # or the whole key or whatever
 
-        # split file up into sentences
+        # split file into sentences
         sents = re.split(r'(?<=[.!?])\s+', file)
-
         for sent in sents: 
             doc = nlp_updated(sent)               
         
@@ -541,7 +535,7 @@ def see_results_spcat():
 # see_results()
 # get_training_list_spcat_2() 
 # fine_tune_spcat()
-see_results_spcat()
+# see_results_spcat()
 # print_label_count()
 # see_results_spcat()
 # align_offsets_to_tokens()
