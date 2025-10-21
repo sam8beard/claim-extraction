@@ -358,14 +358,42 @@ def see_results_ner():
         for result in results: 
             pprint.pprint(f"{result}\n\n")
 
+# helper function to chunk text for processing files using custom spancat
+def chunk_text(file, chunk_size=3): 
+    # lightweight nlp with only sentencizer
+    sentencizer = spacy.blank('en')
+    sentencizer.add_pipe("sentencizer")
+    raw_sents = re.split(r'[.!?]\s+(?=[A-Z0-9])', file)
+    raw_sents = [s.strip() for s in raw_sents if len(s.strip()) > 20]
+
+    for i in range(0, len(raw_sents), chunk_size):
+        chunk_text = " ".join(raw_sents[i:i+chunk_size])
+        yield chunk_text
+        # doc = sentencizer(text)
+
+        # current_chunk, length = [], 0
+        # for sent in doc.sents: 
+        #     sent_len = len(sent)
+        #     # if adding this sentence would exceed token limit, close curr chunk
+        #     if length + sent_len > max_tokens: 
+        #         yield " ".join([s.text for s in current_chunk])
+        #         current_chunk, length = [], 0
+        #     current_chunk.append(sent)
+        #     length += sent_len
+        # if current_chunk:
+        #     yield " ".join([s.text for s in current_chunk])
+
+
 # testing custom spancat model
 # NOTE: think about how spans and metadata are going to be stored for interactive search
-def see_results_spcat(): 
+def process_files_spcat(): 
     nlp_updated = spacy.load("spancat_v1.0")
 
-    # add sentencizer to iterate through sentences
+    # add sentencizer so we have access to root sents of spans
     nlp_updated.add_pipe("sentencizer", before="spancat")
-    num = 5
+
+    # number of files to process
+    num = 30
 
     label_counts = {"SOURCE": 0, "CLAIM_VERB": 0, "CLAIM_CONTENTS": 0, "CLAIM_MOD": 0}
     label_texts = {"SOURCE": [], "CLAIM_VERB": [], "CLAIM_CONTENTS": [], "CLAIM_MOD": []}
@@ -393,52 +421,31 @@ def see_results_spcat():
     # ---------------------
 
 
+   
 
-
-    for doc in nlp_updated.pipe(pull_n_files(num)): 
-                
-
+    for file in tqdm(pull_n_files(num), total=num, desc="Processing files..."):
+        # for doc in nlp_updated.pipe(chunk_text(file)):
+        # chunks = list(chunk_text(file))
+        for doc in tqdm(nlp_updated.pipe(chunk_text(file)), desc="Processing chunk..."):
+        # for doc in nlp_updated.pipe(chunk_text(file)):
+            # print(doc.text)
+            # print(doc.sents)
             # NOTE NOTE NOTE NOTE NOTE NOTE NOTE 
+            # FOR FUTURE REFERENCE
             # if we want to get the file name, we can retrieve the base of the url
-            # or the whole key or whatever
-
-            # split file into sentences
-            # sents = re.split(r'[.!?]\s+(?!$)', file)
-            # # filter empty strings
-            # sents = [s.strip() for s in sents if s.strip()]
-            
-            # for sent in doc.sents: 
-            #     logging.info(f"{sent}\n\n")
-            # return
-                # logging.info(sent)
-                # return
-                # doc = nlp_updated(sent.text)               
+            # or the whole key or whatever            
             
             spans = doc.spans['sc']
             for span, confidence in zip(spans, spans.attrs["scores"]):
-                # logging.info(span.label_)
-                # if span.label_ == "CLAIM_CONTENTS": 
-                #     logging.info("firing") 
-                    # return
                 
                 label_counts[span.label_] += 1
                 label_texts[span.label_].append((span.text, confidence, span.sent.text))
                 # itn += 1
 
-            # pprint.pprint(label_counts)
-
-            print(f"\n\n")
-    # logging.info(f"{label_texts.items()}")
-
-    # print("\nFINAL SPANS:")
-    # pprint.pprint(label_texts)
 
     print("\nFINAL LABEL COUNTS:")
     pprint.pprint(label_counts)
-    # if label_texts.items(): 
-    #     logging.info("Firing")
-    #     return
-    # logging.info("firing")
+   
     with open('logs/span-labels.txt', 'w') as f: 
         for label, spans in label_texts.items(): 
             f.write(f"{label}\n")
@@ -470,7 +477,7 @@ def see_results_spcat():
 # logging.info(f"Num of mods in data: {mod_count}")
 # logging.info(f"Mods: {mods}")
 # fine_tune_spcat()
-see_results_spcat()
+process_files_spcat()
 # print_label_count()
 # see_results_spcat()
 # align_offsets_to_tokens()
