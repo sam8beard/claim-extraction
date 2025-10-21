@@ -18,6 +18,6 @@ services:
       - PGADMIN_DEFAULT_EMAIL=placeholder@placeholder.com
       - PGADMIN_DEFAULT_PASSWORD=changeme
     ports: 
-      - "8080:80"
+      - "1234:80"
     volumes: 
       - ./pgadmin-data:/var/lib/pgadmin

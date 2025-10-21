@@ -236,10 +236,7 @@ def get_tuples_spcat_2(sent):
         # if source is in target entities, is capitalized, and is at least 2 chars long -> valid
         if source.label_ in target_sources and source.text[0].isupper() and len(source.text) >= 2: 
             
-            # # NOTE: dont think i need these
-            # # new start of sentence offset 
-            # sent_start = sent.end_char - sent.end_char 
-            # sent_end = sent.end_char - sent.start_char
+        
 
             # new start of entity offset 
             source_start = source.start_char - sent.start_char
