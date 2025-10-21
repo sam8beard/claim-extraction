@@ -100,7 +100,7 @@ func GetFiles() (map[io.ReadCloser][]string){
 	// } // for 
 	
 	// get 30 pages worth of urls
-	for pageNum := 1; pageNum < 20; pageNum++ { 
+	for pageNum := 1; pageNum < 2; pageNum++ { 
 		
 		newUrl := fmt.Sprintf("%s%d", url, pageNum)
 		c.Visit(newUrl)

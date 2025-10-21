@@ -822,6 +822,7 @@ engines:
   - name: duckduckgo
     engine: duckduckgo
     shortcut: ddg
+    ddg_url: "https://html.duckduckgo.com/html/"
 
   - name: duckduckgo images
     engine: duckduckgo_extra
