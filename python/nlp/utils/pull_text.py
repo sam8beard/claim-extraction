@@ -2,6 +2,7 @@ import boto3, json
 from pathlib import Path
 import unicodedata
 import re
+from tqdm import tqdm
 # connect to s3 client 
 s3 = boto3.client('s3')
 
@@ -42,6 +43,8 @@ def pull_one_file():
 
     file_contents = preprocess_text(file_contents)
     return file_contents
+
+
 def pull_n_files(num_of_files): 
      # open file and read file with keys
     file_path = Path(__file__).parent.parent / "training/s3-keys.json"
@@ -62,16 +65,19 @@ def pull_n_files(num_of_files):
         if len(file_contents) >= 1000000:
             
             yield preprocess_text(file_contents[:999999])
+            # yield file_contents[:999999]
         else: 
             yield preprocess_text(file_contents)
+            # yield file_contents[:999999]
+
 
 # normalize text 
 def preprocess_text(text):
     text = unicodedata.normalize("NFC", text)
     text = "".join(c for c in text if c.isprintable())
     text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"([\-=_])\1{2,}", "", text)
-    text = re.sub(r"[\x0c\x0b]", "", text)
+    # text = re.sub(r"([\-=_])\1{2,}", "", text)
+    # text = re.sub(r"[\x0c\x0b]", "", text)
     text = text.strip()
     return text 
 

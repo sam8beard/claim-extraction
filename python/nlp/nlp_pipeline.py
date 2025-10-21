@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import spacy 
 import re
 import unicodedata
@@ -180,48 +181,189 @@ def initialize_all_docs():
 
 # uses modified get_tuples_spcat_2 to retrieve training data with char offsets
 def get_training_list_spcat_2(): 
+    nlp = spacy.load("en_core_web_trf")
     train_data = [] # add tuples here
     final_text = "" # add entire claim sentence here
     annotations = [] # add offset tuples here
 
-    # doc = initialize_doc(data)
     
-    # doc = initialize_doc(example_text)
-    # doc = initialize_doc(
-    #     'Several initiatives – such as AI4All and the AI Now Institute – explicitly '
-    #     'advocate for fair, diverse, equitable, and non-discriminatory inclusion in '
-    #     'AI at all stages, with a focus on support for under-represented groups.'
-    # )
-    # doc = initialize_doc()
+
     claim_count = 0
     sent_count = 0
-    seen_sents = []
-    for doc in nlp.pipe(pull_all_files()): 
-    # testing
-    # for doc in nlp.pipe(pull_n_files(5)):
-        sent_count += len(list(doc.sents))
-        
+    seen_sents = set()
+    num = 10
+    # NOTE: testing with pull_n_files
+    for doc in nlp.pipe(tqdm(pull_all_files(), total=150, bar_format='{l_bar}{bar:20}{r_bar}', desc="Preparing training data..."), batch_size=8):
+    # for doc in nlp.pipe(tqdm(pull_n_files(num), total=num, desc="Preparing training data..."), batch_size=8):
+
         for ent in doc.ents:
             
             if ent.label_ in target_sources:
                 source_span = ent.root.sent
-            
-                if source_span not in seen_sents: 
-                    seen_sents.append(source_span)
+
+                sent_text = source_span.text.strip()
+
+                if sent_text not in seen_sents: 
+                    seen_sents.add(sent_text)
 
                     
                     
                     for entry in get_tuples_spcat_2(source_span): 
                         
                         if entry: 
-                            final_text = preprocess_text(source_span.text)
+                            # final_text = preprocess_text(source_span.text)
+                            # NOTE: trying without preprocessing
+                            final_text = sent_text
                             claim_count += 1
                             annotations = entry
                             data = ((final_text, annotations))
                             train_data.append(data)
-    for data in train_data: 
-        print(f"\n\n{data}\n\n")
+    # for data in train_data: 
+    #     print(f"\n\n{data}\n\n")
     return train_data
+
+# gets spans based on char offsets 
+def get_tuples_spcat_2(sent):
+    source_start, source_end = 0, 0
+    verb_start, verb_end = 0, 0
+    content_start, content_end = 0, 0
+    claim_mod_start, claim_mod_end = 0, 0
+    claim_mod = ""
+    
+
+    for source in sent.ents: 
+
+        # if source is in target entities, is capitalized, and is at least 2 chars long -> valid
+        if source.label_ in target_sources and source.text[0].isupper() and len(source.text) >= 2: 
+            
+            # # NOTE: dont think i need these
+            # # new start of sentence offset 
+            # sent_start = sent.end_char - sent.end_char 
+            # sent_end = sent.end_char - sent.start_char
+
+            # new start of entity offset 
+            source_start = source.start_char - sent.start_char
+            source_end = source.end_char - sent.start_char
+            # source_start = ent_start
+            # source_end = ent_end
+          
+            # NOTE: we have found a valid claim
+            for a in source.root.ancestors: 
+                if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
+                    
+                    verb = a
+                  
+                    verb_start, verb_end = get_new_token_offset(verb, sent)
+
+                    # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
+                    # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
+
+
+                    # check children of verb for claim mod candidates
+                    advmod_candidates = [j for j in a.children if j.dep_ == "advmod" and j.text.lower() in claim_mod_terms]
+
+                    # if nothing, look 2 tokens on either side of the verb
+                    if not advmod_candidates: 
+                        verb_idx = a.i
+                        window = [j for j in sent if abs(j.i - verb_idx) <= 2]
+                        for i, token in enumerate(window):
+                            if token.text.lower() in claim_mod_terms and token.pos_ == "ADV":
+                                span_tokens = [token]
+                                for next_tok in window[i+1:]:
+                                    if next_tok.text.lower() in claim_mod_terms and next_tok.pos_ == "ADV": 
+                                        span_tokens.append(next_tok)
+                                    else: 
+                                        break
+                                    advmod_candidates.append(span_tokens)
+
+                    # select first candidate
+                    if advmod_candidates: 
+                        span = advmod_candidates[0]
+                        if isinstance(span, list): 
+                            claim_mod = " ".join([t.text for t in span])
+                            claim_mod_start, claim_mod_end = get_new_token_offset(span[0], sent)[0], get_new_token_offset(span[-1], sent)[-1]
+                        else: 
+                            claim_mod = span.text
+                            claim_mod_start, claim_mod_end = get_new_token_offset(span, sent)
+                    else: 
+                        claim_mod = ""
+                        claim_mod_start, claim_mod_end = 0, 0
+
+
+                    #     for j in sent: 
+                    #         if abs(j.i - verb_idx) <= 2 and j.text.lower() in claim_mod_terms and j.pos_ == "ADV": 
+                    #             advmod_candidates.append(j)
+                    # if advmod_candidates: 
+                    #     advmode = adv
+                    # build claim_mod modifier
+
+                    # if advmod: 
+                    #     advmod = advmod.pop()
+                    #     claim_mod = advmod
+                    #     claim_mod_start, claim_mod_end = get_new_token_offset(claim_mod, sent)
+                    #     claim_mod = advmod.text
+
+                    #     # get content span and offset with claim_mod included
+                    #     content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
+                    # else: 
+
+                    # get content span and offset
+                    content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
+                    # testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
+                 
+                    # testing_tuple = [source.text, verb.text, testing_content_text, claim_mod]
+                   
+                    if len(content_offsets) >= 2: 
+                        content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
+                        
+                        # overlaps = [flag for flag in list((
+                        #             (overlap(source_start, source_end, content_start, content_end)), 
+                        #             (overlap(content_start, content_end, verb_start, verb_end))))
+                        #             if flag == True]
+                        
+                        
+                        # if not overlaps: 
+                        
+                        # new_sent = sent.text
+                        
+                        # starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
+                        
+                        # ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
+                        invalid_span = []
+                        
+                        if claim_mod: 
+                            starts = [source_start, verb_start, content_start, claim_mod_start]
+                            ends = [source_end, verb_end, content_end, claim_mod_end]
+                            for start, end in zip(starts, ends): 
+                                if not is_valid_span(start, end):
+                                    invalid_span.append(is_valid_span(start, end))
+                            if not invalid_span: 
+                                yield {
+                                    "spans": {
+                                        "sc": [
+                                            (source_start, source_end, "SOURCE"),
+                                            (verb_start, verb_end, "CLAIM_VERB"),
+                                            (content_start, content_end, "CLAIM_CONTENTS"),
+                                            (claim_mod_start, claim_mod_end, "CLAIM_MOD")
+                                        ]
+                                    }
+                                }
+                        else: 
+                            starts = [source_start, verb_start, content_start]
+                            ends = [source_end, verb_end, content_end]
+                            for start, end in zip(starts, ends): 
+                                if not is_valid_span(start, end):
+                                    invalid_span.append(is_valid_span(start, end))
+                            if not invalid_span: 
+                                yield {
+                                    "spans": {
+                                        "sc": [
+                                            (source_start, source_end, "SOURCE"),
+                                            (verb_start, verb_end, "CLAIM_VERB"),
+                                            (content_start, content_end, "CLAIM_CONTENTS")
+                                        ]
+                                    }
+                                }
 
 # retrieves training data with token offsets
 def get_training_list_spcat(): 
@@ -418,109 +560,6 @@ def get_tuples_spcat(sent):
                             }
 
 
-# gets spans based on char offsets 
-def get_tuples_spcat_2(sent):
-    source_start, source_end = 0, 0
-    verb_start, verb_end = 0, 0
-    content_start, content_end = 0, 0
-    claim_mod_start, claim_mod_end = 0, 0
-    claim_mod = ""
-    
-
-    for source in sent.ents: 
-
-        if source.label_ in target_sources: 
-            
-            # NOTE: dont think i need these
-            # new start of sentence offset 
-            sent_start = sent.end_char - sent.end_char 
-            sent_end = sent.end_char - sent.start_char
-
-            # new start of entity offset 
-            source_start = source.start_char - sent.start_char
-            source_end = source.end_char - sent.start_char
-            # source_start = ent_start
-            # source_end = ent_end
-          
-            # NOTE: we have found a valid claim
-            for a in source.root.ancestors: 
-                if a.lemma_ in claim_verb_terms and a.pos_ == "VERB":
-                    
-                    verb = a
-                  
-                    verb_start, verb_end = get_new_token_offset(verb, sent)
-
-                    # checks for adverb modifier that indicates degree of claim (not perfect but hopefully catches some)
-                    # if the modifier is in the children of the claim verb, is an adverb, ends in -ly, and is directly before the verb
-                    advmod = [j for j in a.children if j.dep_ == "advmod" and "ly" in j.suffix_ and j.i == a.i - 1]
-                
-                    # build claim_mod modifier
-                    if advmod: 
-                        advmod = advmod.pop()
-                        claim_mod = advmod
-                        claim_mod_start, claim_mod_end = get_new_token_offset(claim_mod, sent)
-                        claim_mod = advmod.text
-
-                        # get content span and offset with claim_mod included
-                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and j.i > advmod.i and not j.is_punct]
-                    else: 
-                        # get content span and offset
-                        content_offsets = [get_new_token_offset(j, sent) for j in a.subtree if j.i > a.i and not j.is_punct]
-                    testing_content_text = " ".join([j.text for j in a.subtree if j.i > a.i])
-                 
-                    testing_tuple = [source.text, verb.text, testing_content_text, claim_mod]
-                   
-                    if len(content_offsets) >= 2: 
-                        content_start, content_end = content_offsets[0][0], content_offsets[-1][-1]
-                        
-                        overlaps = [flag for flag in list((
-                                    (overlap(source_start, source_end, content_start, content_end)), 
-                                    (overlap(content_start, content_end, verb_start, verb_end))))
-                                    if flag == True]
-                        
-                        
-                        if not overlaps: 
-                        
-                            # new_sent = sent.text
-                          
-                            # starts = [new_sent[source_start], new_sent[verb_start], new_sent[content_start]]
-                            
-                            # ends = [new_sent[source_end], new_sent[verb_end], new_sent[content_end - 1]]
-                            invalid_span = []
-                            
-                            if claim_mod: 
-                                starts = [source_start, verb_start, content_start, claim_mod_start]
-                                ends = [source_end, verb_end, content_end, claim_mod_end]
-                                for start, end in zip(starts, ends): 
-                                    if not is_valid_span(start, end):
-                                        invalid_span.append(is_valid_span(start, end))
-                                if not invalid_span: 
-                                    yield {
-                                        "spans": {
-                                            "sc": [
-                                                (source_start, source_end, "SOURCE"),
-                                                (verb_start, verb_end, "CLAIM_VERB"),
-                                                (content_start, content_end, "CLAIM_CONTENTS"),
-                                                (claim_mod_start, claim_mod_end, "CLAIM_MOD")
-                                            ]
-                                        }
-                                    }
-                            else: 
-                                starts = [source_start, verb_start, content_start]
-                                ends = [source_end, verb_end, content_end]
-                                for start, end in zip(starts, ends): 
-                                    if not is_valid_span(start, end):
-                                        invalid_span.append(is_valid_span(start, end))
-                                if not invalid_span: 
-                                    yield {
-                                        "spans": {
-                                            "sc": [
-                                                (source_start, source_end, "SOURCE"),
-                                                (verb_start, verb_end, "CLAIM_VERB"),
-                                                (content_start, content_end, "CLAIM_CONTENTS")
-                                            ]
-                                        }
-                                    }
 
 
 # check to see if span is valid (start < end)
