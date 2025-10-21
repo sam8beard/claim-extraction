@@ -360,28 +360,13 @@ def see_results_ner():
 
 # helper function to chunk text for processing files using custom spancat
 def chunk_text(file, chunk_size=3): 
-    # lightweight nlp with only sentencizer
-    sentencizer = spacy.blank('en')
-    sentencizer.add_pipe("sentencizer")
+    
     raw_sents = re.split(r'[.!?]\s+(?=[A-Z0-9])', file)
     raw_sents = [s.strip() for s in raw_sents if len(s.strip()) > 20]
 
     for i in range(0, len(raw_sents), chunk_size):
         chunk_text = " ".join(raw_sents[i:i+chunk_size])
         yield chunk_text
-        # doc = sentencizer(text)
-
-        # current_chunk, length = [], 0
-        # for sent in doc.sents: 
-        #     sent_len = len(sent)
-        #     # if adding this sentence would exceed token limit, close curr chunk
-        #     if length + sent_len > max_tokens: 
-        #         yield " ".join([s.text for s in current_chunk])
-        #         current_chunk, length = [], 0
-        #     current_chunk.append(sent)
-        #     length += sent_len
-        # if current_chunk:
-        #     yield " ".join([s.text for s in current_chunk])
 
 
 # testing custom spancat model
@@ -397,30 +382,6 @@ def process_files_spcat():
 
     label_counts = {"SOURCE": 0, "CLAIM_VERB": 0, "CLAIM_CONTENTS": 0, "CLAIM_MOD": 0}
     label_texts = {"SOURCE": [], "CLAIM_VERB": [], "CLAIM_CONTENTS": [], "CLAIM_MOD": []}
-
-    # NOTE
-    # either this just takes up a ton of memory or using tqdm 
-    # is a massive memory sink
-
-    # for doc in tqdm(range(nlp_updated.pipe(pull_n_files(num))), bar_format='{l_bar}{bar:20}{r_bar}', desc="Preparing training data...")), batch_size=8):
-    # for doc in nlp_updated.pipe(pull_n_files(num)) and tqdm(range(num), bar_format='{l_bar}{bar:20}{r_bar}', desc="Preparing training data...")), batch_size=8):
-    # for itn in tqdm(range(num), bar_format='{l_bar}{bar:20}{r_bar}', desc="Processing documents..."): 
-    #     for file in pull_n_files(num):
-    #         docs = list(nlp_updated.pipe(file))
-    #     docs = list(nlp_updated.pipe())
-
-
-    # -------------------------
-    # NOTE NOTE NOTE NOTE NOTE NOTE 
-
-
-
-    # need to chunk files to create smaller docs!!!!
-
-
-    # ---------------------
-
-
    
 
     for file in tqdm(pull_n_files(num), total=num, desc="Processing files..."):
