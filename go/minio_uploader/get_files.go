@@ -92,23 +92,15 @@ func GetFiles() (map[io.ReadCloser][]string){
 	
 	// base url
 	url := "http://localhost:8888/search?q=AI+safety+ethics+filetype:pdf&format=json&pageno="
-	// get 15 pages worth of urls 
-	// for pageNum := 1; pageNum < 16; pageNum++ { 
-		
-	// 	newUrl := fmt.Sprintf("%s%d", url, pageNum)
-	// 	c.Visit(newUrl)
-	// } // for 
 	
-	// get 30 pages worth of urls
-	for pageNum := 1; pageNum < 2; pageNum++ { 
+	// adjust for number of desired pages worth of requests
+	pageLimit := 5
+	for pageNum := 1; pageNum < pageLimit; pageNum++ { 
 		
 		newUrl := fmt.Sprintf("%s%d", url, pageNum)
 		c.Visit(newUrl)
 	} // for 
 	
-	// for title, url := range files { 
-	// 	fmt.Println(title, ": ", url)
-	// } // for 
 
 	// download files 
 	for title, url := range files { 
