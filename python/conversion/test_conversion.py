@@ -1,9 +1,9 @@
 from minio import Minio
 from minio.error import S3Error
 import psycopg2
-import extract_text
-import get_pdfs
-import upload_text
+from utils import extract_text
+from utils import get_pdfs
+from utils import upload_text
 import os
 import pprint
 from dotenv import load_dotenv
