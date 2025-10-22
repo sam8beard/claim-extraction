@@ -21,7 +21,7 @@ def upload_text_files(client, files):
     assert isinstance(client, Minio), "Must be a properly initialized MinIO client"
     assert len(files) > 0, "Dictionary must have at least one key-value pair"
 
-    successful_uploads = dict()
+    uploads = dict()
 
     bucket_name = "claim-pipeline-docstore"
     success = False
@@ -37,13 +37,12 @@ def upload_text_files(client, files):
                 length=content_length
             )
 
-            if result: successful_uploads[name] = True
+            if result: uploads[name] = True
 
         except Exception as e: 
-            successful_uploads[name] = False
+            uploads[name] = False
 
-    
-    return successful_uploads
+    return uploads
         
 def log_extraction_state(client, uploads): 
     ''' 
@@ -51,10 +50,41 @@ def log_extraction_state(client, uploads):
     for files with successfully extracted text
 
     Argument: 
-        client: A PsycoPG client
-        uploads: A dictionary of files mapped to a boolean representing 
-                 their extraction state
+        client: A PostgreSQL client
+        uploads: A tuple containing the raw object name and a boolean representing 
+                 its extraction state
         
     '''
 
+    # example of query needed to get extracted keys 
+    # SELECT s3_key FROM documents WHERE text_extracted=true ORDER BY uploaded_at
 
+    query = """
+        UPDATE documents
+        SET text_extracted = %s
+        WHERE s3_key = %s
+    """
+    try: 
+        with client.cursor() as cur: 
+            
+            success = False
+            
+            name, extracted = uploads
+            # print(uploads)
+            if extracted: 
+                # THIS NEEDS TO BE THE RAW NAME, NOT PROCESSED
+                cur.execute(query, (extracted, name))
+                success = f"\nModified documents.text_extracted for: \n{name}\n"
+            
+                client.commit()
+            else: 
+                success = f"\nCould not modify row:\t{name}\n{extracted}\n"
+    except Exception as e: 
+        print(f"\nDB error: {e}\n")
+        sucess = f"\nDB error: {e}\n"
+        client.rollback()
+
+   
+        
+
+    return success

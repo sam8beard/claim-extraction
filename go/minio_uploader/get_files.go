@@ -94,7 +94,7 @@ func GetFiles() (map[io.ReadCloser][]string){
 	url := "http://localhost:8888/search?q=AI+safety+ethics+filetype:pdf&format=json&pageno="
 	
 	// adjust for number of desired pages worth of requests
-	pageLimit := 5
+	pageLimit := 15
 	for pageNum := 1; pageNum < pageLimit; pageNum++ { 
 		
 		newUrl := fmt.Sprintf("%s%d", url, pageNum)

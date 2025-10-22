@@ -2,13 +2,13 @@ import boto3, os, json, urllib.parse, io, pymupdf, logging
 import psycopg2
 
 
-def convert_to_txt(file_reader, file_name=None): 
+def convert_to_txt(file_name, file_reader): 
     ''' 
     Extract text from a pdf file.
 
     Argument: 
         file_reader: A .pdf file reader
-        pg_client: A Postgres client
+        file_name: An object name corresponding to the reader
 
     Return: 
         A bytes file stream representing the converted file
@@ -83,6 +83,6 @@ def get_new_object_key(raw_name):
         new_name = "processed/" + root + ".txt"
 
     except Exception as e: 
-        raw_name = e
+        return e
 
     return new_name
