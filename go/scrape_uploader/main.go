@@ -177,7 +177,7 @@ func main() {
 			panic(err)
 		} // if 
 		
-
+		
 		// create document entry
 		doc := models.Document{ 
 			FileName: fileTitle, 
@@ -186,11 +186,11 @@ func main() {
 			S3Key: fileKey, 
 			FileSizeBytes: int(fileSize),
 			TextExtracted: false, 
-		} 
+		}
 
 		// If file was properly processed, then insert row with TextExtracted = true 
 		// else, TextExtracted = false
-		if len(output.Messages) > 0{ 
+		if len(output.Messages) > 0 { 
 			doc.TextExtracted = true
 		} // if
 
