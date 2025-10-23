@@ -26,7 +26,7 @@ func main() {
 		return
 	} // if 
 
-	// set up MinIO client
+	// create MinIO client
 	endpoint := "localhost:9000"
 	accessKeyID := "muel"
 	secretAccessKey := "password"

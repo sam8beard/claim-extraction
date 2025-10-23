@@ -263,7 +263,16 @@ def build_claim_suggester() -> Suggester:
     
     return claim_suggester
 
+'''
+WARNING!!!!!!!
 
+DO NOT retrain model yet
+
+Need to confirm we have ample data if and when we decide it needs to be retrained
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+'''
 def fine_tune_spcat(): 
     # load and configure model
     nlp = spacy.blank('en')
@@ -417,28 +426,5 @@ def process_files_spcat():
             f.write("---------------------------\n\n")
 
 
-# test_suggester()
-# see_results()
-# debug()
-# fine_tune_ner()
-# see_results()
-# TESTING
-# mod_count = 0
-# mods = []
-# train_data = get_training_list_spcat_2() 
-# for text, annots in train_data: 
-#     print(f"\n{text}\n")
-#     print(f"\n{annots['spans']['sc']}\n")
 
-#     for tup in annots['spans']['sc']: 
-#         if "CLAIM_MOD" in tup: 
-#             mods.append(text[tup[0]:tup[1]])
-#             mod_count += 1
-
-# logging.info(f"Num of mods in data: {mod_count}")
-# logging.info(f"Mods: {mods}")
-# fine_tune_spcat()
 process_files_spcat()
-# print_label_count()
-# see_results_spcat()
-# align_offsets_to_tokens()

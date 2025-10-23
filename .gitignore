@@ -21,7 +21,7 @@ go/s3_fetcher/fetch-keys
 go/web_scraper/web_scraper
 go/scrape_uploader/fetch
 go/minio_uploader/minio_uploader
-
+go/fetcher_api/api
 
 # macOS
 .DS_Store
