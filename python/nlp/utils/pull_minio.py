@@ -74,15 +74,15 @@ def pull_n_files(keys, n=1):
             file = response.read().decode('utf-8')
             response.close()
             response.release_conn()
-            print(f"\nFOUND\n")
+            # print(f"\nFOUND\n")
             found_count += 1
             yield preprocess_text(file)
 
         except Exception as e: 
             print(f"\nFile does not exist in bucket: {name}\n")
             continue
-    print(len(keys))
-    print(found_count)
+    # print(len(keys))
+    # print(found_count)
 def preprocess_text(text):
     ''' 
     Preprocess text for model training
@@ -101,8 +101,8 @@ def preprocess_text(text):
     return text 
 
 keys = get_keys()
-for key in keys: 
-    print(f"\n{key}\n")
-for file in pull_n_files(keys, len(keys)): 
-    print()
+# for key in keys: 
+#     print(f"\n{key}\n")
+for file in pull_n_files(keys, 2): 
+    print(file[3000:])
     
