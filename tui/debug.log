@@ -14,3 +14,8 @@ debug 2025/10/23 00:31:37 prompt: What topic would you like to search?, answer: 
 debug 2025/10/23 00:33:15 prompt: What topic would you like to search?, answer: AI Ethics and Safety
 debug 2025/10/23 00:33:17 prompt: How many files would you like to analyze?, answer: 20
 debug 2025/10/23 00:33:18 prompt: What would you like the confidence threshold to be?, answer: .6
+debug 2025/10/23 02:23:14 prompt: What topic would you like to search?, answer: sdfdf
+debug 2025/10/23 02:23:14 prompt: How many files would you like to analyze?, answer: sdf
+debug 2025/10/23 02:23:15 prompt: What would you like the confidence threshold to be?, answer: sdf
+debug 2025/10/23 02:23:15 prompt: What topic would you like to search?, answer: sdf
+debug 2025/10/23 02:23:15 prompt: How many files would you like to analyze?, answer: sdf
