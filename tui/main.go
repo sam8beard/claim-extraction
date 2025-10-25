@@ -20,7 +20,9 @@ type model struct {
 	receivedAt time.Time
 	state      string
 	url        string
+	visits     map[string]int
 	choice     string
+	warning    bool
 } // model
 
 type loadingMsg string
@@ -36,7 +38,14 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 func initialModel() model {
-	return model{state: "landing"}
+	return model{
+		state: "landing",
+		visits: map[string]int{
+			"Google.com": 0,
+			"Charm.sh":   0,
+			"Harm.sh":    0,
+		},
+	}
 } // initialModel
 
 // this acts as a custom Cmd
@@ -106,6 +115,7 @@ func createLoader() func() {
 } // createLoader
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// create a load simulator
 	load := createLoader()
 
 	if msg != nil {
@@ -115,27 +125,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = "loading"
 			switch msg.String() {
 			case "enter":
-				m.choice = "Charm"
+				m.choice = "Charm.sh"
 				return m, checkCharmServer
 			case " ":
-				m.choice = "Google"
+				m.choice = "Google.com"
 				return m, checkGoogleServer
+			case "b": // testing return on error
+				m.choice = "Harm.sh"
+				return m, checkServer("https://harm.sh")
 			case "q":
 				m.state = "quit"
 				return m, tea.Quit
 
-			case "b": // testing return on error
-				return m, checkServer("https://harm.sh")
 			} // switch
 
 		case statusMsg:
 			load()
+			m.visits[m.choice]++
 			m.state = "ready"
 			m.status = int(msg)
 			m.receivedAt = time.Now()
 			return m, nil
 		case errMsg:
 			load()
+			m.visits[m.choice]++
 			m.state = "ready"
 			m.err = msg
 			return m, tea.Quit
@@ -146,41 +159,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	} // if
 
 	return m, nil
-	// switch msg := msg.(type) {
-	// case statusMsg:
-	// 	// the server returned a statusMsg
-	// 	// convert the statusMsg into an int
-	// 	// save the new int into the int var of the m struct
-	// 	// return the model and quit
-	// 	m.state = "get"
-	// 	m.status = int(msg)
-	// 	m.receivedAt = time.Now()
-	// 	return m, initialModel
-	// case errMsg:
-	// 	// there was an error
-	// 	// save the errMsg into the err value of the m struct
-	// 	m.err = msg
-	// 	return m, tea.Quit
-	// case tea.KeyMsg:
-	// 	// we received a key press
-	// 	// if the key press is ctrl+c, return the model and quit the program
-
-	// 	if msg.Type == tea.KeyCtrlC {
-	// 		return m, tea.Quit
-	// 	} // if
-
-	// 	if msg.Type == tea.KeyEnter {
-	// 		return m, checkCharmServer
-	// 	}
-
-	// 	if msg.Type == tea.KeySpace {
-	// 		return m, checkGoogleServer
-	// 	}
-	// } // switch
-
-	// if we happen to get any other messages, just return the model
-	// the model is the current state of our application, and we don't
-	// want to change it in this case
 
 } // Update
 
@@ -189,7 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	// if theres an error, print it out and dont do anything
 	if m.err != nil {
-		return fmt.Sprintf("\nWe had some trouble: %v\n\n", m.err)
+		return fmt.Sprintf("\nWebsite not found: %v\n\n", m.err)
 	} // if
 
 	// s := "\nPress enter for Charm and space for Google\n"
@@ -202,6 +180,16 @@ func (m model) View() string {
 		return s
 	case "ready":
 		s = fmt.Sprintf("%d %s \nReceived at: %s", m.status, http.StatusText(m.status), m.receivedAt)
+		s += fmt.Sprintf(
+			"\nVisits: \n%s | %d\n%s | %d\n%s | %d\n",
+			"Google.com",
+			m.visits["Google.com"],
+			"Charm.sh",
+			m.visits["Charm.sh"],
+			"Harm.sh",
+			m.visits["Harm.sh"],
+		)
+
 	case "quit":
 		return "\nQuitting application\n"
 	} // switch
