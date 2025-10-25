@@ -1,180 +1,115 @@
-package main 
+package main
 
 import (
+	"net/http"
+	"os"
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 	// "github.com/charmbracelet/bubbles/textinput"
 	// "github.com/charmbracelet/lipgloss"
 	"fmt"
-	"os"
-	"log"
 )
-// type Styles struct { 
-// 	BorderColor lipgloss.Color
-// 	InputField lipgloss.Style
 
-// }
+const url = "https://charm.sh"
 
-// func DefaultStyles() *Styles { 
-// 	s := new(Styles)
-// 	s.BorderColor = lipgloss.Color("42")
-// 	s.InputField = lipgloss.NewStyle().BorderForeground(s.BorderColor).BorderStyle(lipgloss.NormalBorder()).Padding(1).Width(80)
-// 	return s
-// }
-
-type model struct { 
-	options []string
-	cursor int 
-	selected string
+type model struct {
+	status int
+	err    error
 } // model
 
-func initialModel() model { 
-	return model{ 
-		options: []string{
-			"View processed files",
-			"Run pipeline",
-			"View logs",
-		}, 
-		cursor: 0,
-		selected: "",
-	}
-} // initialModel
+type statusMsg int
+type errMsg struct{ err error }
 
-func (m model) Init() tea.Cmd { 
-	// just return nil, this means "not accepting I/O right now"
-	return nil
+// for msgs that contain errors its usually handy to also implement
+// the error interface on the message
+func (e errMsg) Error() string { return e.err.Error() }
+
+// this acts as a custom Cmd
+func checkServer() tea.Msg {
+	// create an http client and make get request
+	c := &http.Client{Timeout: 10 * time.Second}
+	res, err := c.Get(url)
+	if err != nil {
+		return errMsg{err}
+	} // if
+
+	// we received a response from the server
+	// return the http status code as a msg
+	return statusMsg(res.StatusCode)
+
+} // checkServer
+
+func (m model) Init() tea.Cmd {
+	// return the Cmd we made earlier
+	// NOTE: the function is not called; the bubble tea runtime
+	// 		 will do that when the time is right
+	return checkServer
+	// in bubbletea, Cmds return msgs
+	// checkServer IS a Cmd that returns a msg
+	// this Cmd's functionality is specified in the checkServer() function
+
 } // Init
 
-
-// func NewPrompt(prompt string) Prompt { 
+// func NewPrompt(prompt string) Prompt {
 // 	return Prompt{prompt: prompt}
 // }
 
-// func New(prompts []Prompt) *model { 
-// 	styles := DefaultStyles()
-// 	answerField := textinput.New()
-// 	answerField.Placeholder = ""
-// 	answerField.Focus()
-// 	return &model{
-// 		prompts: prompts, 
-// 		answerField: answerField, 
-// 		styles: styles,
-// 	}
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case statusMsg:
+		// the server returned a statusMsg
+		// convert the statusMsg into an int
+		// save the new int into the int var of the m struct
+		// return the model and quit
+		m.status = int(msg)
+		return m, tea.Quit
+	case errMsg:
+		// there was an error
+		// save the errMsg into the err value of the m struct
+		m.err = msg
+		return m, tea.Quit
 
-// } // New
-
-
-
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { 
-	// var cmd tea.Cmd
-	// current := &m.prompts[m.index]
-	switch msg  := msg.(type) {
-
-		// case tea.WindowSizeMsg: 
-		// 	m.width = msg.Width 
-		// 	m.height = msg.Height
-
-		// Is it a key press? 
-		case tea.KeyMsg:
-			// what key was pressed?
-			switch msg.String() { 
-			
-			// keys that exit a program
-			case "ctrl+c", "q": 
-				return m, tea.Quit
-			case "up":
-				// if cursor is not already at first option
-				if m.cursor > 0 { 
-					m.cursor--
-				} // if
-			case "down": 
-				// if cursor is not already at last option
-				if m.cursor < len(m.options)-1 {
-					m.cursor++
-				} // if 
-			case "enter": 
-				m.selected = m.options[m.cursor]
-				return m, nil
-		} // switch
+	case tea.KeyMsg:
+		// we received a key press
+		// if the key press is ctrl+c, return the model and quit the program
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		} // if
 	} // switch
-	
-	 // Return the model to the BT runtime for processing 
-	 // NOTE that we are not returning a command 
-	 return m, nil
+
+	// if we happen to get any other messages, just return the model
+	// the model is the current state of our application, and we don't
+	// want to change it in this case
+	return m, nil
 } // Update
 
-func (m model) View() string { 
+// look at our current model and build
+// the output string (the view of our application) accordingly
+func (m model) View() string {
+	// if theres an error, print it out and dont do anything
+	if m.err != nil {
+		return fmt.Sprintf("\nWe had some trouble: %v\n\n", m.err)
+	} // if
 
-	// if m.width == 0 { 
-	// 	return "loading..."
-	// } // if 
-	s:= "--------- Claim Extraction Pipeline ---------\n\n"
-	for i, option := range m.options { 
-		cursor := " " // no cursor
-		if m.cursor == i {
-			cursor = ">"
-		} // if 
-		s += fmt.Sprintf("%s %s\n", cursor, option)
-	} // for 
-	if m.selected != "" { 
-		s += fmt.Sprintf("\nYou chose: %s\n", m.selected)
-	} // if 
-	s += "\nPress q to quit.\n"
-	return s
-	
-	
+	// tell the user we're doing something
+	s := fmt.Sprintf("Checking %s ...\n", url)
 
-	// // header
-	// s := "What would you like to do today?\n\n"
+	// when the server responds with a status, add it to the current line
+	if m.status > 0 {
+		s += fmt.Sprintf("%d %s", m.status, http.StatusText(m.status))
+	} // if
 
-	// // iterate over choices 
-	// for i, choice := range m.choices { 
-
-	// 	// is the cursor pointing at this choice? 
-	// 	cursor := " " // no cursor
-	// 	if m.cursor == i { 
-	// 		cursor = ">" // cursor
-	// 	} // if 
-
-	// 	// is this choice selected?
-	// 	checked := " " // not selected
-	// 	if _, ok := m.selected[i]; ok { 
-	// 		checked = "x" // selected
-	// 	} // if 
-
-	// 	// render row
-	// 	s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	// } // for 
-
-	// // footer 
-	// s += "\nPress q to quit.\n"
-
-	// // send UI for rendering 
-	// return s
+	// send off whatever we came up with above for rendering
+	return "\n" + s + "\n\n"
 } // View
 
-// func (m *model) Next() { 
-// 	if m.index < len(m.prompts)-1 { 
-// 		m.index++
-// 	} else { 
-// 		m.index = 0
-// 	}
-// }
-func main() { 
-	// set up error logging
-	f, err := tea.LogToFile("debug.log", "debug")
-	if err != nil { 
-			log.Fatalf("err: %w", err)
-	} // if 
-	defer f.Close()
+func main() {
+	_, err := tea.NewProgram(model{}).Run()
 
-	
-	// make program
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
-
-	// start program
-	if _, err := p.Run(); err != nil { 
-		fmt.Printf("Error: %v", err)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
-	} // if 
+	} // if
+
 } // main
