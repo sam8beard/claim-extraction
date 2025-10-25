@@ -5,8 +5,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	// "github.com/charmbracelet/bubbles/textinput"
+
 	// "github.com/charmbracelet/lipgloss"
 	"fmt"
 )
@@ -15,31 +16,38 @@ const charmUrl = "https://charm.sh"
 const googleUrl = "https://google.com"
 
 type model struct {
-	status     int
-	err        error
-	receivedAt time.Time
-	state      string
-	url        string
-	visits     map[string]int
-	choice     string
-	warning    bool
+	status     int             // response status
+	err        error           // error received
+	receivedAt time.Time       // time response was received
+	state      string          // state of model
+	url        string          // url to visit
+	textInput  textinput.Model // text input for url
+	visits     map[string]int  // visits to each site
+	choice     string          // site chosen by keypress
+	warning    bool            // indicator for malformed url
 } // model
 
 type loadingMsg string
 type statusMsg int
 type errMsg struct{ err error }
 
-// type stateMsg string
-
-// type readyMsg tea.Msg
-
 // for msgs that contain errors its usually handy to also implement
 // the error interface on the message
 func (e errMsg) Error() string { return e.err.Error() }
 
+func buildTextInput() textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = "Search for a website"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 20
+	return ti
+} // buildTextInput
+
 func initialModel() model {
 	return model{
-		state: "landing",
+		textInput: buildTextInput(),
+		state:     "landing",
 		visits: map[string]int{
 			"Google.com": 0,
 			"Charm.sh":   0,
@@ -95,7 +103,7 @@ func (m model) Init() tea.Cmd {
 	// in bubbletea, Cmds return msgs
 	// checkCharmServer IS a Cmd that returns a msg
 	// this Cmd's functionality is specified in the checkCharmServer() function
-	return nil
+	return textinput.Blink
 } // Init
 
 //	func NewPrompt(prompt string) Prompt {
@@ -136,11 +144,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "q":
 				m.state = "quit"
 				return m, tea.Quit
-
+			default:
+				m.state = "quit"
+				return m, tea.Quit
 			} // switch
 
 		case statusMsg:
 			load()
+			m.warning = false
 			m.visits[m.choice]++
 			m.state = "ready"
 			m.status = int(msg)
@@ -148,10 +159,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case errMsg:
 			load()
-			m.visits[m.choice]++
-			m.state = "ready"
+			m.warning = true
+			m.state = "landing"
 			m.err = msg
-			return m, tea.Quit
+			return m, nil
 		default:
 			return m, nil
 		} // switch
@@ -166,20 +177,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the output string (the view of our application) accordingly
 func (m model) View() string {
 	// if theres an error, print it out and dont do anything
-	if m.err != nil {
-		return fmt.Sprintf("\nWebsite not found: %v\n\n", m.err)
+	var s string
+	if m.warning {
+		s = fmt.Sprintf("\nWebsite not found: %v\n\n", m.err)
 	} // if
 
 	// s := "\nPress enter for Charm and space for Google\n"
-	var s string
 	switch m.state {
 	case "landing":
-		return "\nPress enter for Charm and space for Google\n"
+		s += "\nPress enter for Charm and space for Google\n"
 	case "loading":
 		s = fmt.Sprintf("\nLoading %s...\n", m.choice)
 		return s
 	case "ready":
-		s = fmt.Sprintf("%d %s \nReceived at: %s", m.status, http.StatusText(m.status), m.receivedAt)
+		s = fmt.Sprintf("%d %s \nReceived at: %s\n", m.status, http.StatusText(m.status), m.receivedAt)
 		s += fmt.Sprintf(
 			"\nVisits: \n%s | %d\n%s | %d\n%s | %d\n",
 			"Google.com",
