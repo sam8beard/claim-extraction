@@ -23,6 +23,7 @@ type model struct {
 	choice     string
 } // model
 
+type loadingMsg string
 type statusMsg int
 type errMsg struct{ err error }
 
@@ -91,14 +92,26 @@ func (m model) Init() tea.Cmd {
 //	func NewPrompt(prompt string) Prompt {
 //		return Prompt{prompt: prompt}
 //	}
-// func ready() tea.Msg {
-// 	return readyMsg("ready")
-// } // ready
+//
+//	func ready() tea.Msg {
+//		return readyMsg("ready")
+//	} // ready
+
+// simulate a loading state
+func createLoader() func() {
+	return func() {
+		duration := time.Duration(2)
+		time.Sleep(duration * time.Second)
+	}
+} // createLoader
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	load := createLoader()
+
 	if msg != nil {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
+			// change state to loading
 			m.state = "loading"
 			switch msg.String() {
 			case "enter":
@@ -108,16 +121,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.choice = "Google"
 				return m, checkGoogleServer
 			case "q":
+				m.state = "quit"
 				return m, tea.Quit
 
 			case "b": // testing return on error
 				return m, checkServer("https://harm.sh")
 			} // switch
+
 		case statusMsg:
+			load()
+			m.state = "ready"
 			m.status = int(msg)
 			m.receivedAt = time.Now()
 			return m, nil
 		case errMsg:
+			load()
+			m.state = "ready"
 			m.err = msg
 			return m, tea.Quit
 		default:
@@ -173,12 +192,19 @@ func (m model) View() string {
 		return fmt.Sprintf("\nWe had some trouble: %v\n\n", m.err)
 	} // if
 
-	s := "\nPress enter for Charm and space for Google\n"
-
-	if m.status > 0 {
-		s += fmt.Sprintf("\n%s queried...", m.choice)
-		s += fmt.Sprintf("%d %s \nReceived at: %s", m.status, http.StatusText(m.status), m.receivedAt)
-	}
+	// s := "\nPress enter for Charm and space for Google\n"
+	var s string
+	switch m.state {
+	case "landing":
+		return "\nPress enter for Charm and space for Google\n"
+	case "loading":
+		s = fmt.Sprintf("\nLoading %s...\n", m.choice)
+		return s
+	case "ready":
+		s = fmt.Sprintf("%d %s \nReceived at: %s", m.status, http.StatusText(m.status), m.receivedAt)
+	case "quit":
+		return "\nQuitting application\n"
+	} // switch
 
 	// // tell the user we're doing something
 	// s += fmt.Sprintf("Checking %s ...\n", charmUrl)
