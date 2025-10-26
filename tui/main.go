@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -12,22 +13,17 @@ import (
 	"fmt"
 )
 
-const charmUrl = "https://charm.sh"
-const googleUrl = "https://google.com"
-
 type model struct {
-	status     int             // response status
-	err        error           // error received
-	receivedAt time.Time       // time response was received
-	state      string          // state of model
-	url        string          // url to visit
-	textInput  textinput.Model // text input for url
-	visits     map[string]int  // visits to each site
-	choice     string          // site chosen by keypress
-	warning    bool            // indicator for malformed url
+	status         int             // response status
+	err            error           // error received
+	receivedAt     time.Time       // time response was received
+	state          string          // state of model
+	url            string          // url to visit
+	textInput      textinput.Model // text input for url
+	visits         map[string]int  // visits to each site
+	acceptingInput bool            // indicates whether or not input is being accepted
 } // model
 
-type loadingMsg string
 type statusMsg int
 type errMsg struct{ err error }
 
@@ -46,8 +42,9 @@ func buildTextInput() textinput.Model {
 
 func initialModel() model {
 	return model{
-		textInput: buildTextInput(),
-		state:     "landing",
+		acceptingInput: true,
+		textInput:      buildTextInput(),
+		state:          "",
 		visits: map[string]int{
 			"Google.com": 0,
 			"Charm.sh":   0,
@@ -56,24 +53,12 @@ func initialModel() model {
 	}
 } // initialModel
 
-// this acts as a custom Cmd
-func checkCharmServer() tea.Msg {
-	// create an http client and make get request
-	c := &http.Client{Timeout: 10 * time.Second}
-	res, err := c.Get(charmUrl)
-	if err != nil {
-		return errMsg{err}
-	} // if
-
-	// we received a response from the server
-	// return the http status code as a msg
-	return statusMsg(res.StatusCode)
-
-} // checkCharmServer
-
 func checkServer(url string) tea.Cmd {
+	// load := createLoader()
 	return func() tea.Msg {
+		// load()
 		c := &http.Client{Timeout: 10 * time.Second}
+
 		res, err := c.Get(url)
 		if err != nil {
 			return errMsg{err}
@@ -82,42 +67,16 @@ func checkServer(url string) tea.Cmd {
 	}
 }
 
-func checkGoogleServer() tea.Msg {
-	// create an http client and make get request
-	c := &http.Client{Timeout: 10 * time.Second}
-	res, err := c.Get(googleUrl)
-	if err != nil {
-		return errMsg{err}
-	} // if
-
-	// we received a response from the server
-	// return the http status code as a msg
-	return statusMsg(res.StatusCode)
-} // checkBadServer
-
 func (m model) Init() tea.Cmd {
-	// return the Cmd we made earlier
-	// NOTE: the function is not called; the bubble tea runtime
-	// 		 will do that when the time is right
 
-	// in bubbletea, Cmds return msgs
-	// checkCharmServer IS a Cmd that returns a msg
-	// this Cmd's functionality is specified in the checkCharmServer() function
 	return textinput.Blink
-} // Init
 
-//	func NewPrompt(prompt string) Prompt {
-//		return Prompt{prompt: prompt}
-//	}
-//
-//	func ready() tea.Msg {
-//		return readyMsg("ready")
-//	} // ready
+} // Init
 
 // simulate a loading state
 func createLoader() func() {
 	return func() {
-		duration := time.Duration(2)
+		duration := time.Duration(1)
 		time.Sleep(duration * time.Second)
 	}
 } // createLoader
@@ -126,95 +85,120 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// create a load simulator
 	load := createLoader()
 
-	if msg != nil {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			// change state to loading
-			m.state = "loading"
-			switch msg.String() {
-			case "enter":
-				m.choice = "Charm.sh"
-				return m, checkCharmServer
-			case " ":
-				m.choice = "Google.com"
-				return m, checkGoogleServer
-			case "b": // testing return on error
-				m.choice = "Harm.sh"
-				return m, checkServer("https://harm.sh")
-			case "q":
-				m.state = "quit"
-				return m, tea.Quit
-			default:
-				m.state = "quit"
-				return m, tea.Quit
-			} // switch
+	// create cmd for text input
+	var cmd tea.Cmd
 
-		case statusMsg:
-			load()
-			m.warning = false
-			m.visits[m.choice]++
-			m.state = "ready"
-			m.status = int(msg)
-			m.receivedAt = time.Now()
-			return m, nil
-		case errMsg:
-			load()
-			m.warning = true
-			m.state = "landing"
-			m.err = msg
-			return m, nil
+	// switch on message type
+	switch msg := msg.(type) {
+	// if the message is a key press
+	case tea.KeyMsg:
+		// switch on key type
+		switch msg.Type {
+
+		// user submits input
+		case tea.KeyEnter:
+			// disable input
+			m.textInput.Blur()
+			m.acceptingInput = false
+			m.state = "submit"
+			m.url = m.textInput.Value()
+			m.textInput.SetValue("")
+			return m, checkServer(m.url)
+
+		// user quits
+		case tea.KeyCtrlC:
+			m.state = "quit"
+			return m, tea.Quit
+
+		// attempt to let user type
 		default:
-			return m, nil
+			// accept input if user has not just submitted something
+			if m.acceptingInput {
+				m.textInput.Focus()
+				m.textInput, cmd = m.textInput.Update(msg)
+			} // if
 		} // switch
 
-	} // if
+	// msg is valid response
+	case statusMsg:
+		// simulate load
+		load()
+		m.acceptingInput = true
+		m.state = "received"
+		m.status = int(msg)
+		m.receivedAt = time.Now()
+		return m, nil
 
-	return m, nil
+	// msg is invaild response
+	case errMsg:
+		// simulate load
+		load()
+		m.acceptingInput = true
+		m.state = "error"
+		m.err = msg
+		return m, nil
 
+	// if nothing, wait for message
+	default:
+		return m, nil
+	} // switch
+	return m, cmd
 } // Update
+
+// STATES
+
+// submit: shows loading screen
+// - msg received: tea.KeyType == "enter"
+// - m.state: change state to submit
+// - cmd returned: checkServer(m.url)
+// - this will be shown when the msg received is cmd returned is checkServer
+
+// ** i think loading needs to happen here **
+// received: shows response
+// - msg received: statusMsg
+// - m.state: change state to received
+// - cmd returned: nil
+
+// error: shows error
+// - msg received: errMsg
+// - m.state: change state to error
+// - cmd returned: nil
+
+// quit: shows quit message
+// - msg received: tea.KeyMsg == "ctrl+c"
+// - m.state: change state to quit
+// - cmd returned: tea.Quit
 
 // look at our current model and build
 // the output string (the view of our application) accordingly
 func (m model) View() string {
-	// if theres an error, print it out and dont do anything
+	var b strings.Builder
 	var s string
-	if m.warning {
-		s = fmt.Sprintf("\nWebsite not found: %v\n\n", m.err)
-	} // if
-
-	// s := "\nPress enter for Charm and space for Google\n"
 	switch m.state {
-	case "landing":
-		s += "\nPress enter for Charm and space for Google\n"
-	case "loading":
-		s = fmt.Sprintf("\nLoading %s...\n", m.choice)
-		return s
-	case "ready":
+	// user submits url
+	case "submit":
+		s = fmt.Sprintf("\nLoading %s...\n", m.url)
+		b.WriteString(s)
+	// print response received
+	case "received":
 		s = fmt.Sprintf("%d %s \nReceived at: %s\n", m.status, http.StatusText(m.status), m.receivedAt)
-		s += fmt.Sprintf(
-			"\nVisits: \n%s | %d\n%s | %d\n%s | %d\n",
-			"Google.com",
-			m.visits["Google.com"],
-			"Charm.sh",
-			m.visits["Charm.sh"],
-			"Harm.sh",
-			m.visits["Harm.sh"],
-		)
-
+		b.WriteString(s)
+	// print error
+	case "error":
+		s = fmt.Sprintf("\nWebsite not found: %v\n\n", m.err)
+		b.WriteString(s)
+	// user quit
 	case "quit":
 		return "\nQuitting application\n"
 	} // switch
 
-	// // tell the user we're doing something
-	// s += fmt.Sprintf("Checking %s ...\n", charmUrl)
+	// show prompt when we are accepting input
+	if m.acceptingInput {
+		s = ("Enter a url: " + m.textInput.View())
+		b.WriteString("\n" + s + "\n\n")
+	} // if
 
-	// // when the server responds with a status, add it to the current line
-	// if m.status > 0 {
-	// 	s += fmt.Sprintf("%d %s \nReceived at: %s", m.status, http.StatusText(m.status), m.receivedAt)
-	// } // if
-
-	// send off whatever we came up with above for rendering
-	return "\n" + s + "\n\n"
+	return b.String()
 } // View
 
 func main() {
