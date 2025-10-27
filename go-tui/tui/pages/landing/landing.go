@@ -100,7 +100,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} // switch
 	case tea.WindowSizeMsg:
 		m.menu.SetSize(msg)
-		return m, nil
+		// IF THINGS MESS UP LATER THIS IS A GOOD CULPRIT
+		// return m, nil
 	} // switch
 	updatedMenu, cmd := m.menu.Update(msg)
 	m.menu = updatedMenu.(custommenu.Model)

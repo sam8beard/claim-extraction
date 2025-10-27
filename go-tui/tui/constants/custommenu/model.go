@@ -61,7 +61,7 @@ func New(title string, choices []Choice, selected *Choice) Model {
 	delegation.Styles = styles.ListItemStyles
 
 	defaultWidth := 120
-	defaultHeight := 20
+	defaultHeight := 12
 
 	model := Model{
 		list:     list.New([]list.Item{}, delegation, defaultWidth, defaultHeight),
@@ -76,8 +76,8 @@ func New(title string, choices []Choice, selected *Choice) Model {
 	model.list.Title = title
 	model.list.SetShowPagination(true)
 	model.list.SetShowTitle(true)
-	model.list.SetFilteringEnabled(false)
-	model.list.SetShowFilter(false)
+	model.list.SetFilteringEnabled(true)
+	model.list.SetShowFilter(true)
 	model.list.SetShowStatusBar(false)
 	model.list.SetShowHelp(false)
 
@@ -127,7 +127,6 @@ func (m Model) SetStyles(s MenuStyles) {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.SetSize(msg)
@@ -153,20 +152,22 @@ func (m Model) SelectChoice(choice Choice) (Model, tea.Cmd) {
 func (m *Model) SetSize(w tea.WindowSizeMsg) {
 	// m.width = w.Width
 	// m.height = w.Height
+	m.width = m.list.Width()
+	m.height = m.list.Height()
 	// m.list.SetSize(w.Width, w.Height)
 	// m.help.Width = w.Width
-	m.width = w.Width
-	m.height = w.Height
+	// m.width = w.Width
+	// m.height = w.Height
 
-	headerHeight := 10 // reserved space for shell header
-	footerHeight := 0  // reserved space for help/footer
-	listHeight := m.height - headerHeight - footerHeight
-	if listHeight < 1 {
-		listHeight = 1
-	}
+	// headerHeight := 10 // reserved space for shell header
+	// footerHeight := 0  // reserved space for help/footer
+	// listHeight := m.height - headerHeight - footerHeight
+	// if listHeight < 1 {
+	// 	listHeight = 1
+	// }
 
-	m.list.SetSize(m.width, listHeight)
-	m.help.Width = m.width
+	// m.list.SetSize(m.width, listHeight)
+	// m.help.Width = m.width
 }
 
 func (m *Model) SetShowTitle(display bool) {
@@ -207,16 +208,16 @@ func (m Model) View() string {
 		// }
 
 		// Combine list and help vertically first
-		content := lipgloss.JoinVertical(
-			lipgloss.Top,
-			m.list.View(),
-			// help,
-		)
+		// content := lipgloss.JoinVertical(
+		// 	lipgloss.Top,
+		// 	m.list.View(),
+		// 	// help,
+		// )
 
-		// Then center horizontally
-		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, content)
+		// // Then center horizontally
+		// return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, content)
 
-		// return "\n" + m.list.View() + help
+		return "\n" + m.list.View()
 	}
 
 	return ""

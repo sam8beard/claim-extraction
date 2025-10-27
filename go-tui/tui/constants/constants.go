@@ -20,25 +20,32 @@ type AppStyles struct {
 	Header     lipgloss.Style
 	Breadcrumb lipgloss.Style
 	Footer     lipgloss.Style
-	Body       lipgloss.Style
+	Content    lipgloss.Style
 }
 
+//	func (app *AppStyles) SetContentHeight(contentHeight int) {
+//		app.Content.Height(contentHeight)
+//	}
 func NewAppStyles() AppStyles {
 	return AppStyles{
 		Header: lipgloss.NewStyle().
 			Bold(true).
 			Underline(true).
-			Align(lipgloss.Center).
+			PaddingTop(0).
+			AlignHorizontal(lipgloss.Center).
 			Foreground(lipgloss.Color("24")),
 		Breadcrumb: lipgloss.NewStyle().
+			PaddingTop(0).
 			Italic(true),
 		Footer: lipgloss.NewStyle().
 			Italic(true).
-			Align(lipgloss.Center).
+			// PaddingBottom(0).
+			// Height(0).
+			AlignVertical(lipgloss.Bottom).
 			Foreground(lipgloss.Color("240")),
-		Body: lipgloss.NewStyle().
-			Align(lipgloss.Center).
-			Padding(2, 2),
+		Content: lipgloss.NewStyle().
+			AlignVertical(lipgloss.Center).
+			Padding(0),
 	}
 }
 
