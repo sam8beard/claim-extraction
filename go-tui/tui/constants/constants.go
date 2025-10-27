@@ -1,8 +1,11 @@
 package constants
 
 import (
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kevm/bubbleo/navstack"
+	"github.com/kevm/bubbleo/utils"
 )
 
 var (
@@ -14,7 +17,67 @@ var (
 )
 
 // Styling
-var DocStyle = lipgloss.NewStyle().Margin(0, 2)
+type AppStyles struct {
+	Header lipgloss.Style
+	Footer lipgloss.Style
+	Body   lipgloss.Style
+}
+
+func NewAppStyles() AppStyles {
+	return AppStyles{
+		Header: lipgloss.NewStyle().
+			Bold(true).
+			Align(lipgloss.Center).
+			Foreground(lipgloss.Color("15")),
+		Footer: lipgloss.NewStyle().
+			Align(lipgloss.Center).
+			Foreground(lipgloss.Color("240")),
+		Body: lipgloss.NewStyle().
+			Padding(1, 2),
+	}
+}
+
+type LandingStyles struct {
+	Viewport viewport.Model
+	Footer   lipgloss.Style
+	Menu     lipgloss.Style
+	Header   lipgloss.Style
+}
+
+func NewLandingStyles(width int) LandingStyles {
+	// return Styles{
+	// 	Footer: lipgloss.NewStyle().
+	// 		Width(width).
+	// 		AlignHorizontal(lipgloss.Center),
+	// 	Menu: lipgloss.NewStyle().Margin(0, 2),
+	// 	Header: lipgloss.NewStyle().
+	// 		Bold(true),
+	// }
+	view := viewport.New(1, 1)
+	var headerStyles = lipgloss.NewStyle().
+		Width(width).
+		AlignHorizontal(lipgloss.Center).
+		Bold(true)
+
+	var footerStyles = lipgloss.NewStyle().
+		Width(width).
+		AlignHorizontal(lipgloss.Center).
+		Foreground(lipgloss.Color("240"))
+
+	var headerHeight = headerStyles.GetHeight()
+	var footerHeight = footerStyles.GetHeight()
+
+	var menuStyles = lipgloss.NewStyle().
+		Height(view.Height - headerHeight - footerHeight).
+		PaddingTop(2)
+
+	return LandingStyles{
+		Viewport: view,
+		Header:   headerStyles,
+		Menu:     menuStyles,
+		Footer:   footerStyles,
+	}
+}
 
 // Key bindings
 type keymap struct {
@@ -24,3 +87,20 @@ type keymap struct {
 var KeyMap = keymap{
 	// define custom keys here
 }
+
+// represents a page selection in landing menu
+type PageSelectedMsg struct {
+	Model tea.Model
+	Name  string
+}
+
+// represents a cmd that pushes the page that was selected
+// onto the navstack
+func PushNavStackCmd(msg PageSelectedMsg) tea.Cmd {
+	return utils.Cmdize(navstack.PushNavigation{
+		Item: navstack.NavigationItem{
+			Title: msg.Name,
+			Model: msg.Model,
+		},
+	})
+} // PushNavStackCmd
