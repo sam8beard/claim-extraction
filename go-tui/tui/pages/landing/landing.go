@@ -4,9 +4,7 @@ import (
 	"tui/tui/constants"
 	"tui/tui/constants/custommenu"
 
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	// "github.com/kevm/bubbleo/menu"
 	// "github.com/kevm/bubbleo/menu"
 	// "github.com/kevm/bubbleo/menu"
@@ -15,10 +13,10 @@ import (
 type Model struct {
 	// mode mode
 	// stats
-	viewport   viewport.Model
-	headerText string
-	menu       custommenu.Model
-	footerText string
+	// viewport   viewport.Model
+	// headerText string
+	menu custommenu.Model
+	// footerText string
 	// currentModel string
 	// selectedPage
 	// pages []Page
@@ -71,14 +69,14 @@ func New(options []tea.Model) Model {
 		},
 	}
 	title := ""
-	header := ""
+	// header := ""
 	// footer := "enter: select\t|\tesc: back\n"
 	// var currChoice *menu.Choice
 	menuModel := custommenu.New(title, choices, nil)
 	landingModel := Model{
-		viewport:   viewport.New(0, 0),
-		headerText: header,
-		menu:       menuModel,
+		// viewport:   viewport.New(0, 0),
+		// headerText: header,
+		menu: menuModel,
 		// footerText: footer,
 	}
 	return landingModel
@@ -110,34 +108,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	styles := constants.NewLandingStyles(m.viewport.Width)
-	// s := styles.Header
-	// s += constants.MenuStyle.Render(m.menu.View())
-	// s += styles.Footer
-	// header := styles.Header.Render("Claim Extraction Pipeline")
-	// menu := styles.Menu.Render(m.menu.View())
-	// footer := styles.Footer.Render("help section...")
+	// styles := constants.NewLandingStyles(m.viewport.Width)
+	// // s := styles.Header
+	// // s += constants.MenuStyle.Render(m.menu.View())
+	// // s += styles.Footer
+	// // header := styles.Header.Render("Claim Extraction Pipeline")
+	// // menu := styles.Menu.Render(m.menu.View())
+	// // footer := styles.Footer.Render("help section...")
 
-	// view := lipgloss.JoinVertical(
-	// 	// lipgloss.Top,
+	// // view := lipgloss.JoinVertical(
+	// // 	// lipgloss.Top,
+	// // 	lipgloss.Center,
+	// // 	styles.Header.Render(m.headerText),
+	// // 	styles.Menu.Render(m.menu.View()),
+	// // 	styles.Footer.Render(m.footerText),
+	// // )
+
+	// return lipgloss.Place(
+	// 	m.viewport.Width,
+	// 	m.viewport.Height,
 	// 	lipgloss.Center,
-	// 	styles.Header.Render(m.headerText),
-	// 	styles.Menu.Render(m.menu.View()),
-	// 	styles.Footer.Render(m.footerText),
+	// 	lipgloss.Center,
+	// 	lipgloss.JoinVertical(
+	// 		lipgloss.Top,
+	// 		styles.Header.Render(m.headerText),
+	// 		styles.Menu.Render(m.menu.View()),
+	// 		styles.Footer.Render(m.footerText),
+	// 	),
 	// )
-
-	return lipgloss.Place(
-		m.viewport.Width,
-		m.viewport.Height,
-		lipgloss.Center,
-		lipgloss.Center,
-		lipgloss.JoinVertical(
-			lipgloss.Top,
-			styles.Header.Render(m.headerText),
-			styles.Menu.Render(m.menu.View()),
-			styles.Footer.Render(m.footerText),
-		),
-	)
+	return m.menu.View()
 	// return view
 	// s += "enter: select\t|\tesc: back\n"
 	// return s

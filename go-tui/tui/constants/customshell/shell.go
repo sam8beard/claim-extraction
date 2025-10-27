@@ -50,6 +50,11 @@ func (m Model) Init() tea.Cmd {
 
 // Update passes messages to the navigation stack.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// switch msg := msg.(type) {
+	// case tea.WindowSizeMsg:
+	// 	m.window.Width = msg.Width
+	// 	m.window.Height = msg.Height
+	// }
 	cmd := m.Navstack.Update(msg)
 	return m, cmd
 }
@@ -58,17 +63,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	styles := constants.NewAppStyles()
 	m.Breadcrumb.Styles.Delimiter = " / "
-	bc := m.Breadcrumb.View()
-	nav := m.Navstack.View()
-
+	// bc := m.Breadcrumb.View()
+	// body := m.Navstack.View() // or any page
+	// content := lipgloss.JoinVertical(lipgloss.Top, body)
+	body := styles.Body.Render(m.Navstack.View())
+	bc := styles.Breadcrumb.Render(m.Breadcrumb.View())
 	header := styles.Header.Render(m.Header)
 	footer := styles.Footer.Render(m.Footer)
-	body := styles.Body.Render(lipgloss.JoinVertical(lipgloss.Top, bc, nav))
+	// body := styles.Body.Render(lipgloss.JoinVertical(lipgloss.Top, bc, nav))
 
-	return lipgloss.JoinHorizontal(
+	return lipgloss.Place(
+		m.window.Width,
+		m.window.Height,
 		lipgloss.Center,
-		header,
-		body,
-		footer,
+		lipgloss.Center,
+		lipgloss.JoinVertical(
+			lipgloss.Center,
+			header,
+			bc,
+			body,
+			footer,
+		),
 	)
 }

@@ -151,10 +151,22 @@ func (m Model) SelectChoice(choice Choice) (Model, tea.Cmd) {
 
 // SetSize sets the size of the menu
 func (m *Model) SetSize(w tea.WindowSizeMsg) {
+	// m.width = w.Width
+	// m.height = w.Height
+	// m.list.SetSize(w.Width, w.Height)
+	// m.help.Width = w.Width
 	m.width = w.Width
 	m.height = w.Height
-	m.list.SetSize(w.Width, w.Height)
-	m.help.Width = w.Width
+
+	headerHeight := 10 // reserved space for shell header
+	footerHeight := 0  // reserved space for help/footer
+	listHeight := m.height - headerHeight - footerHeight
+	if listHeight < 1 {
+		listHeight = 1
+	}
+
+	m.list.SetSize(m.width, listHeight)
+	m.help.Width = m.width
 }
 
 func (m *Model) SetShowTitle(display bool) {
@@ -163,16 +175,48 @@ func (m *Model) SetShowTitle(display bool) {
 
 // View renders the menu. When no choices are present, nothing is rendered.
 func (m Model) View() string {
-	var help string
-	if m.help.ShowAll {
-		height := m.height - 5
-		m.list.SetSize(m.width, height)
-		help = styles.HelpStyle.Render(m.help.View(m.keys))
-	}
+	// var help string
+	// if m.help.ShowAll {
+	// 	height := m.height - 5
+	// 	m.list.SetSize(m.width, height)
+	// 	help = styles.HelpStyle.Render(m.help.View(m.keys))
+	// }
 
 	// display menu if choices are present.
 	if len(m.Choices) > 0 {
-		return "\n" + m.list.View() + help
+		// return lipgloss.Place(
+		// 	m.width,
+		// 	m.height,
+		// 	lipgloss.Center,
+		// 	lipgloss.Center,
+		// 	lipgloss.JoinVertical(
+		// 		lipgloss.Top,
+		// 		m.list.View(),
+		// 		help,
+		// 	),
+		// )
+		// padding := lipgloss.NewStyle().PaddingTop(10)
+		// return lipgloss.JoinVertical(
+		// 	lipgloss.Top,
+		// 	padding.Render(m.list.View()),
+		// 	help,
+		// )
+		// var help string
+		// if m.help.ShowAll {
+		// 	help = styles.HelpStyle.Render(m.help.View(m.keys))
+		// }
+
+		// Combine list and help vertically first
+		content := lipgloss.JoinVertical(
+			lipgloss.Top,
+			m.list.View(),
+			// help,
+		)
+
+		// Then center horizontally
+		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, content)
+
+		// return "\n" + m.list.View() + help
 	}
 
 	return ""
