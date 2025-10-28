@@ -1,12 +1,6 @@
 # ClaimEX
 ClaimEX is a data aggregation tool for extracting structured information from argument-rich/claim-rich PDF documents
 
-## Powered By
-* ### [**Bubble Tea**][bubbletea]
-* ### [**spaCy**][spacy]
-* ### [**SearXNG**][searxng]
-* ### [**MinIO**][minio]
-
 Features
 ---
 *	Search for a topic via [SearXNG][searxng] 
@@ -18,6 +12,16 @@ Features
       * Claim density score (indicating how claim-heavy the document is)
 * Filter and navigate through extracted spans
 
+## Powered By
+ #### [**Bubble Tea**][bubbletea] for the TUI
+ #### [**spaCy**][spacy] for NLP 
+ #### [**SearXNG**][searxng] for search
+ #### [**MinIO**][minio] for object storage
+
+----
+#### TO DO: 
+* use charm/huh for forms
+* implement charm/models for LLM analysis? 
 
 [bubbletea]: https://github.com/charmbracelet/bubbletea/
 [spacy]:https://github.com/explosion/spaCy
