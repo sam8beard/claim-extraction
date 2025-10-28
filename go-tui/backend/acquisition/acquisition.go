@@ -11,8 +11,6 @@ import (
 	"tui/backend/types"
 	"tui/backend/utils"
 
-	// "github.com/minio/minio-go"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -28,15 +26,6 @@ type Acquisition struct {
 	MinioClient MinioClient   // bucket name with minio client
 	PGClient    *pgxpool.Pool // pgx pool
 }
-
-// // creates an acquisition instance
-// func NewAcquisition(minioClient *minio.Client, pgClient *pgxpool.Pool) *Acquisition {
-// 	// return &Acquisition{
-// 	// 	MinioClient: minioClient,
-// 	// 	PGClient:    pgClient,
-// 	// 	// Scraper:     scraper,
-// 	// }
-// } // NewAcquisition
 
 func (a *Acquisition) InitializeClients() error {
 	// set env vars for db conn ection
@@ -71,7 +60,6 @@ func (a *Acquisition) InitializeClients() error {
 		err := errors.New("unable to establish connection to Postgres")
 		return err
 	} // if
-	defer a.PGClient.Close()
 
 	return err
 } // NewClients
@@ -130,15 +118,30 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	if err := a.InitializeClients(); err != nil {
 		return result, err
 	} // if
+	defer a.PGClient.Close()
 
 	// 3) upload to minio
-	if err := a.UploadToMinio(&downloadResults.SuccessFiles); err != nil {
+	uploadResults, err := a.Upload(&downloadResults.SuccessFiles)
+	if err != nil {
 		return result, err
 	} // if
-	// 4) save metadata to postgres
-	// if err := a.UploadDataToPostgres()
 
 	// 5) populate AcquisitionResult.Log
+
+	// total count of successfully downloaded and logged files
+	successfulCount := uploadResults.SuccessUploadCount
+	// total count of files requested by user
+	requestedFileCount := input.FileCount
+
+	// add final log messages
+	result.Log = append(result.Log, fmt.Sprintf("%d files requested", requestedFileCount))
+	result.Log = append(result.Log, fmt.Sprintf("%d files downloaded, stored, and logged in database", successfulCount))
+
+	// add files to acquisition object
+	sfiles := uploadResults.SuccessFiles
+	ffiles := uploadResults.FailedFiles
+	result.SuccessFiles = append(result.SuccessFiles, sfiles...)
+	result.FailedFiles = append(result.FailedFiles, ffiles...)
 
 	// 6) return AcquisitionResult
 	return result, err
