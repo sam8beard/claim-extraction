@@ -1,54 +1,55 @@
 package main
 
-import ( 
-	"fmt"
+import (
 	"context"
-	"time"
-	"os"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"io"
+	"net/url"
+	"os"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/sam8beard/claim-extraction/go/db"
 	"github.com/sam8beard/claim-extraction/go/models"
 	"github.com/sam8beard/claim-extraction/go/utils"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"crypto/sha256"
-	"encoding/hex"
-	"net/url"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-func main() { 
+func main() {
 	// set env vars for db conn ection
 	err := utils.LoadDotEnvUpwards()
-	if err != nil { 
+	if err != nil {
 		fmt.Println("Could not load .env variables")
 		fmt.Println(err)
 		return
-	} // if 
+	} // if
 
 	// create MinIO client
 	endpoint := "localhost:9000"
 	accessKeyID := "muel"
 	secretAccessKey := "password"
-	useSSL := false 
+	useSSL := false
 	bucketName := "claim-pipeline-docstore"
 
-	minioClient, err := minio.New(endpoint, &minio.Options{ 
-		Creds: credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: useSSL,
 	})
 
 	if err != nil {
 		fmt.Println("Unable to establish connection to MinIO server")
 		panic(err)
-	} // if 
+	} // if
 
 	// establish connection pool to pg db
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil { 
-			fmt.Println("Unable to establish database connection")
-			panic(err)
-	} // if 
+	if err != nil {
+		fmt.Println("Unable to establish database connection")
+		panic(err)
+	} // if
 	defer pool.Close()
 
 	// download files
@@ -64,63 +65,63 @@ func main() {
 
 		// create temp file and new reader for seek and metadeta
 		tempFile, err := os.CreateTemp("", "tempfile-*")
-		if err != nil { 
+		if err != nil {
 			fmt.Println("Could not create temp file")
 			// panic(err)
 			continue
-		} // if 
+		} // if
 
 		_, err = io.Copy(tempFile, fileReader)
-		if err != nil { 
+		if err != nil {
 			fmt.Printf("Unable to copy file for metadata: %s\n", fileTitle)
 			continue
-		} // if 
-			
+		} // if
+
 		_, err = tempFile.Seek(0, io.SeekStart)
-		if err != nil { 	
+		if err != nil {
 			tempFile.Close()
 			fmt.Println("Unable to reset offset")
 			continue
-		} // if 
-			
+		} // if
+
 		fileReader.Close()
 		defer tempFile.Close()
 
 		fileInfo, err := tempFile.Stat()
-		if err != nil { 
+		if err != nil {
 			fmt.Println("Couldn't get file stats")
 			// panic(err)
 			continue
-		} // if 
-		
+		} // if
+
 		fileSize := fileInfo.Size()
 		// fileSizeInt := big.NewInt(fileSize)
-		if fileSize == 0 { 
+		if fileSize == 0 {
 			fmt.Println("File is either empty or was not read properly")
 			continue
 		}
-		
-		// get file hash then reset pointer 
-		data, err := io.ReadAll(tempFile) 
-		if err != nil { 
+
+		// get file hash then reset pointer
+		data, err := io.ReadAll(tempFile)
+		if err != nil {
 			fmt.Println("Error reading file body")
 			// panic(err)
 			continue
-		} // if 
+		} // if
 		h := sha256.New()
 		h.Write(data)
 		hashBytes := h.Sum(nil)
 		fileHash := hex.EncodeToString(hashBytes)
 		tempFile.Seek(0, io.SeekStart)
 
-		// get host for object key 
+		// get host for object key
 		parsedUrl, err := url.Parse(fileUrl)
-		if err != nil { 
+		if err != nil {
 			fmt.Println("Could not parse url")
 			continue
-		} // if 
+		} // if
 		hostName := parsedUrl.Hostname()
-		
+
 		// construct object key
 		fileTitle = fmt.Sprint(fileTitle, ".pdf")
 		currTime := time.Now()
@@ -129,34 +130,34 @@ func main() {
 
 		ctx := context.Background()
 		opts := minio.PutObjectOptions{
-    		ContentType: "application/pdf",
+			ContentType: "application/pdf",
 		}
 		_, err = minioClient.PutObject(ctx, bucketName, fileKey, tempFile, int64(fileSize), opts)
-		if err != nil { 
+		if err != nil {
 			fmt.Println("Could not upload file to bucket")
 			continue
-		} // if 
+		} // if
 
 		// fmt.Println(info)
 		// create document entry
-		doc := models.Document{ 
-			FileName: fileTitle, 
-			Source: hostName, 
-			ContentHash: fileHash, 
-			S3Key: fileKey, 
+		doc := models.Document{
+			FileName:      fileTitle,
+			Source:        hostName,
+			ContentHash:   fileHash,
+			S3Key:         fileKey,
 			FileSizeBytes: int(fileSize),
-			TextExtracted: false, 
-		} 
+			TextExtracted: false,
+		}
 
 		// insert row
 		err = db.InsertDocumentMetadata(context.Background(), pool, &doc)
 		if err != nil {
-			fmt.Println("Error inserting row into database: ", err)
+			fmt.Println("File already exists in table: ", err)
 			continue
-		} // if 
-		
+		} // if
+
 		fmt.Println("Successfully inserted row into Postgres database")
 		// filesUploaded += 1
-	} // for 
+	} // for
 
 } // main
