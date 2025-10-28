@@ -2,7 +2,7 @@
 ClaimEX is a data aggregation tool for extracting structured information from argument/claim-rich PDF documents
 
 ### Powered By:
-### [**Bubble Tea**][bubbletea] and [**spaCy**][bubbletea]
+### [**Bubble Tea**][bubbletea] and [**spaCy**][spacy]
 
 Features
 ---
