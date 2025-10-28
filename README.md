@@ -10,9 +10,9 @@ Features
 *	Select the number of files to aggregate.
 *	Process files using a pre-trained Span Categorizer (SpanCat) model to detect and extract claim spans with the click of a button
 *	View analysis for each document, including:
-* Sources
-* Extracted claims
-* Claim density score (indicating how claim-heavy the document is)
+      * Sources
+      * Extracted claims
+      * Claim density score (indicating how claim-heavy the document is)
 
 
 [bubbletea]: https://github.com/charmbracelet/bubbletea/
