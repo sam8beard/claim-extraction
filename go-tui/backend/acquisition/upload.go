@@ -12,7 +12,7 @@ import (
 	"time"
 	"tui/backend/db"
 	"tui/backend/db/models"
-	"tui/backend/types"
+	"tui/backend/types/shared"
 
 	"github.com/minio/minio-go/v7"
 )
@@ -20,8 +20,8 @@ import (
 type UploadResults struct {
 	SuccessUploadCount int
 	ExistingFilesCount int
-	SuccessFiles       []types.File
-	FailedFiles        []types.FailedFile
+	SuccessFiles       []shared.File
+	FailedFiles        []shared.FailedFile
 }
 
 func NewObjectKey(fileTitle string, fileURL string) (string, error) {
@@ -48,8 +48,8 @@ func NewHostName(fileURL string) (string, error) {
 func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, error) {
 	var err error
 	uploadResults := UploadResults{
-		SuccessFiles: make([]types.File, 0),
-		FailedFiles:  make([]types.FailedFile, 0),
+		SuccessFiles: make([]shared.File, 0),
+		FailedFiles:  make([]shared.FailedFile, 0),
 	}
 
 	for fileKey, fileReader := range *files {
@@ -63,7 +63,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		// create temp file and new reader for seek and metadeta
 		tempFile, err := os.CreateTemp("", "tempfile-*")
 		if err != nil {
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "could not open temp file",
 			}
@@ -74,7 +74,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		// copy file contents into tempFile and get size
 		fileSize, err := io.Copy(tempFile, reader)
 		if err != nil {
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "could not copy file contents",
 			}
@@ -86,7 +86,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		_, err = tempFile.Seek(0, io.SeekStart)
 		if err != nil {
 			tempFile.Close()
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "could not reset offset",
 			}
@@ -101,7 +101,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		// get file hash
 		data, err := io.ReadAll(tempFile)
 		if err != nil {
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "could not read file body",
 			}
@@ -117,7 +117,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		_, err = tempFile.Seek(0, io.SeekStart)
 		if err != nil {
 			tempFile.Close()
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "could not reset offset",
 			}
@@ -169,14 +169,14 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		err = db.InsertDocumentMetadata(ctx, a.PGClient, &doc)
 		if err != nil {
 			uploadResults.ExistingFilesCount++
-			file := types.FailedFile{
+			file := shared.FailedFile{
 				URL:    url,
 				Report: "file already exists in database",
 			}
 			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
 		} else {
 			uploadResults.SuccessUploadCount++
-			file := types.File{
+			file := shared.File{
 				FileName: title,
 				Key:      fileKey,
 				URL:      url,

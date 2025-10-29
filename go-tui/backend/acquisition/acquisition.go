@@ -4,72 +4,23 @@ Handles the orchestration of the acquisition flow
 package acquisition
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
 	"tui/backend/types"
-	"tui/backend/utils"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"tui/backend/types/shared"
 )
 
-type MinioClient struct {
-	Bucket string
-	Client *minio.Client
-}
-
-// represents an acquistion instance
+// represents an acquisition instance
 type Acquisition struct {
-	MinioClient MinioClient   // bucket name with minio client
-	PGClient    *pgxpool.Pool // pgx pool
+	shared.Workflow
 }
-
-func (a *Acquisition) InitializeClients() error {
-	// set env vars for db conn ection
-
-	err := utils.LoadDotEnvUpwards()
-	if err != nil {
-		err := errors.New("could not load .env variables")
-		return err
-	} // if
-
-	// create MinIO client
-	endpoint := "localhost:9000"
-	accessKeyID := "muel"
-	secretAccessKey := "password"
-	useSSL := false
-	bucketName := "claim-pipeline-docstore"
-
-	a.MinioClient.Bucket = bucketName
-	a.MinioClient.Client, err = minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
-	})
-
-	if err != nil {
-		err := errors.New("unable to establish connection to MinIO")
-		return err
-	} // if
-
-	// establish connection pool to pg db
-	a.PGClient, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
-	if err != nil {
-		err := errors.New("unable to establish connection to Postgres")
-		return err
-	} // if
-
-	return err
-} // NewClients
 
 // Executes the acquisition flow
 func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult, error) {
 	var err error
 	result := types.AcquisitionResult{
-		SuccessFiles: make([]types.File, 0),
-		FailedFiles:  make([]types.FailedFile, 0),
+		SuccessFiles: make([]shared.File, 0),
+		FailedFiles:  make([]shared.FailedFile, 0),
 		Log:          make([]string, 0),
 	}
 

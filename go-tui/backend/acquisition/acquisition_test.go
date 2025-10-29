@@ -38,7 +38,6 @@ func TestAcquisition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	} // err
-
 	resultLog := output.Log
 	for _, result := range resultLog {
 		log.Printf("\n%s\n", result)
