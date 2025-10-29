@@ -27,7 +27,6 @@ type UploadResults struct {
 func NewObjectKey(fileTitle string, fileURL string) (string, error) {
 	hostName, err := NewHostName(fileURL)
 	// construct object key
-	fileTitle = fmt.Sprint(fileTitle, ".pdf")
 	currTime := time.Now()
 	formattedTime := currTime.Format(time.RFC3339)
 	fileKey := fmt.Sprint("raw", "/", hostName, "/", formattedTime, "-", fileTitle)
@@ -64,23 +63,36 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		// create temp file and new reader for seek and metadeta
 		tempFile, err := os.CreateTemp("", "tempfile-*")
 		if err != nil {
-			err := errors.New("could not create temp file")
-			return uploadResults, err
+			file := types.FailedFile{
+				URL:    url,
+				Report: "could not open temp file",
+			}
+			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
+			continue
 		} // if
 
 		// copy file contents into tempFile and get size
 		fileSize, err := io.Copy(tempFile, reader)
 		if err != nil {
-			err = errors.New("could not copy file contents")
-			return uploadResults, err
+			file := types.FailedFile{
+				URL:    url,
+				Report: "could not copy file contents",
+			}
+			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
+			continue
 		} // if
 
 		// reset file offset
 		_, err = tempFile.Seek(0, io.SeekStart)
 		if err != nil {
 			tempFile.Close()
-			err = errors.New("could not reset file offset")
-			return uploadResults, err
+			file := types.FailedFile{
+				URL:    url,
+				Report: "could not reset offset",
+			}
+			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
+			continue
+
 		} // if
 
 		reader.Close()
@@ -89,8 +101,12 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		// get file hash
 		data, err := io.ReadAll(tempFile)
 		if err != nil {
-			err = errors.New("could not read file body")
-			return uploadResults, err
+			file := types.FailedFile{
+				URL:    url,
+				Report: "could not read file body",
+			}
+			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
+			continue
 		}
 		h := sha256.New()
 		h.Write(data)
@@ -101,8 +117,12 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		_, err = tempFile.Seek(0, io.SeekStart)
 		if err != nil {
 			tempFile.Close()
-			err = errors.New("could not reset file offset")
-			return uploadResults, err
+			file := types.FailedFile{
+				URL:    url,
+				Report: "could not reset offset",
+			}
+			uploadResults.FailedFiles = append(uploadResults.FailedFiles, file)
+			continue
 		} // if
 
 		// create object key for file upload
@@ -110,7 +130,9 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 		if err != nil {
 			return uploadResults, err
 		} // if
-		fileKey, err := NewObjectKey(title, url)
+
+		finalTitle := fmt.Sprint(title, ".pdf")
+		fileKey, err := NewObjectKey(finalTitle, url)
 		if err != nil {
 			return uploadResults, err
 		} // if
@@ -135,7 +157,7 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 
 		// create document entry
 		doc := models.Document{
-			FileName:      title,
+			FileName:      finalTitle,
 			Source:        hostName,
 			ContentHash:   fileHash,
 			S3Key:         fileKey,
@@ -143,8 +165,6 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, e
 			TextExtracted: false,
 		}
 
-		// THIS IS WHERE WE DETERMINE WHAT FILES ARE ALREADY IN OUR DATABASE
-		// WHAT SHOULD WE DO?
 		// insert row
 		err = db.InsertDocumentMetadata(ctx, a.PGClient, &doc)
 		if err != nil {

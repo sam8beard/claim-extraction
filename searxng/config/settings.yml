@@ -57,15 +57,15 @@ search:
   # ban time in seconds after engine errors
   ban_time_on_fail: 5
   # max ban time in seconds after engine errors
-  max_ban_time_on_fail: 120
+  max_ban_time_on_fail: 30
   suspended_times:
     # Engine suspension time after error (in seconds; set to 0 to disable)
     # For error "Access denied" and "HTTP error [402, 403]"
     SearxEngineAccessDenied: 86400
     # For error "CAPTCHA"
-    SearxEngineCaptcha: 86400
+    SearxEngineCaptcha: 0
     # For error "Too many request" and "HTTP error 429"
-    SearxEngineTooManyRequests: 3600
+    SearxEngineTooManyRequests: 0
     # Cloudflare CAPTCHA
     cf_SearxEngineCaptcha: 1296000
     cf_SearxEngineAccessDenied: 86400
@@ -183,7 +183,7 @@ outgoing:
   pool_connections: 100
   # Allow the connection pool to maintain keep-alive connections below this
   # point.
-  pool_maxsize: 20
+  pool_maxsize: 30
   # See https://www.python-httpx.org/http2/
   enable_http2: true
   # uncomment below section if you want to use a custom server certificate
@@ -487,9 +487,9 @@ engines:
   #   shortcut: arc
   #   timeout: 4.0
 
-  # - name: arxiv
-  #   engine: arxiv
-  #   shortcut: arx
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
 
   # - name: ask
   #   engine: ask

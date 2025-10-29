@@ -73,12 +73,21 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 		Log:          make([]string, 0),
 	}
 
-	// 1) scrape urls
-	scrapeResult := Scrape(input.Query, input.FileCount)
+	// initialize clients
+	if err := a.InitializeClients(); err != nil {
+		return result, err
+	} // if
+	defer a.PGClient.Close()
 
+	// 1) scrape urls
+	scrapeResult, err := Scrape(input.Query, input.FileCount)
+	if err != nil {
+		err := errors.New("could not visit url")
+		return result, err
+	}
 	// log count of pages searched to result and result log
 	result.PagesSearched = scrapeResult.PageCount
-	pagesSearchedMsg := fmt.Sprintf("%d out of a maximum 30 pages worth of results scraped", result.PagesSearched)
+	pagesSearchedMsg := fmt.Sprintf("%d out of a maximum %d pages worth of results scraped", result.PagesSearched, MaxPages)
 	result.Log = append(result.Log, pagesSearchedMsg)
 
 	// log count of file urls scraped to result log
@@ -88,8 +97,10 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 
 	// 2) download files
 	urlsToDownload := scrapeResult.URLMap
-	downloadResults := DownloadFiles(urlsToDownload)
-
+	downloadResults, err := a.DownloadFiles(urlsToDownload)
+	if err != nil {
+		return result, err
+	} // if
 	// log results of downloaded files
 	for fileInfo, _ := range downloadResults.SuccessFiles {
 		title, url := fileInfo.Title, fileInfo.URL
@@ -109,16 +120,14 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 		result.Log = append(result.Log, failedMsg)
 	} // for
 
-	// log total amount of failed file
+	// log total amount of failed files
 	failedFileCount := len(downloadResults.FailedFiles)
 	failedMsg := fmt.Sprintf("Failed to download %d files", failedFileCount)
 	result.Log = append(result.Log, failedMsg)
 
-	// initialize clients
-	if err := a.InitializeClients(); err != nil {
-		return result, err
-	} // if
-	defer a.PGClient.Close()
+	// log total amount of skipped files
+	skippedMsg := fmt.Sprintf("%d files skipped - already exist in database", downloadResults.ExistingFilesCount)
+	result.Log = append(result.Log, skippedMsg)
 
 	// 3) upload to minio
 	uploadResults, err := a.Upload(&downloadResults.SuccessFiles)
@@ -134,8 +143,11 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	requestedFileCount := input.FileCount
 
 	// add final log messages
-	result.Log = append(result.Log, fmt.Sprintf("%d files requested", requestedFileCount))
-	result.Log = append(result.Log, fmt.Sprintf("%d files downloaded, stored, and logged in database", successfulCount))
+	result.Log = append(result.Log, fmt.Sprintf("%d file(s) requested", requestedFileCount))
+	existingCount := downloadResults.ExistingFilesCount + uploadResults.ExistingFilesCount
+	existingMsg := fmt.Sprintf("%d files already exist in database", existingCount)
+	result.Log = append(result.Log, existingMsg)
+	result.Log = append(result.Log, fmt.Sprintf("%d file(s) downloaded, stored, and logged in database", successfulCount))
 
 	// add files to acquisition object
 	sfiles := uploadResults.SuccessFiles

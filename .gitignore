@@ -54,3 +54,5 @@ python/nlp/spancat_v1.0
 
 # MinIO
 minio/minio_data
+
+go-tui/backend/acquisition/testing.log

@@ -19,7 +19,7 @@ DOES NOT DOWNLOAD (see download.go)
 
 // the result of our scrape
 type ScrapeResult struct {
-	URLMap    map[string]string
+	URLMap    map[string]string // map of file names to urls
 	URLCount  int
 	PageCount int
 }
@@ -36,13 +36,14 @@ type Result struct {
 }
 
 // maximum pages allowed to visit
-const MaxPages = 30
+const MaxPages = 50
 
 // builds the base url
 func BuildBaseUrl(query string) string {
 	baseUrl := "http://localhost:8888/search?q=%s+filetype:pdf&format=json&pageno="
 	encodedQuery := strings.ReplaceAll(query, " ", "+")
-	return fmt.Sprintf(baseUrl, encodedQuery)
+	finalUrl := fmt.Sprintf(baseUrl, encodedQuery)
+	return finalUrl
 }
 
 // builds and returns a cleaned file name
@@ -71,6 +72,7 @@ func MakeQueryURL(query string, pageNo int) (string, error) {
 func ResponseHandler(r *colly.Response, finalResults *ScrapeResult, seenURLs *[]string, maxFiles int) {
 	// invalid response
 	if r.StatusCode != 200 {
+		fmt.Println(r.Headers)
 		return
 	} // if
 	body := r.Body
@@ -99,8 +101,9 @@ Scrapes for files using query and number of files provided by user
 
 Returns a ScrapeResult
 */
-func Scrape(query string, maxFiles int) ScrapeResult {
+func Scrape(query string, maxFiles int) (ScrapeResult, error) {
 	seenURLs := make([]string, 0)
+	var err error
 	finalResults := ScrapeResult{
 		URLMap: make(map[string]string),
 	}
@@ -117,10 +120,13 @@ func Scrape(query string, maxFiles int) ScrapeResult {
 		if err != nil || finalResults.URLCount >= maxFiles {
 			break
 		} // if
-		c.Visit(currURL)
+		err = c.Visit(currURL)
+		if err != nil {
+			return finalResults, err
+		} // if
 		pageNum++
 	} // for
 
 	finalResults.PageCount = pageNum
-	return finalResults
+	return finalResults, err
 } // Scrape
