@@ -26,9 +26,18 @@ func (c *Conversion) Run(input types.ConversionInput) (types.ConversionResult, e
 	// Outline conversion process here
 	/*
 
-		// What other files and functions do we need?
+			// What other files and functions do we need?
 
+		// use the keys from ConversionInput to retreive files
 
+		// pass file readers to python sub process
+		// (apparently no reliable library for pdf conversion in go)
+
+		// once text is parsed, update text_extracted in documents table
+
+		// make new object key, and upload parsed text to bucket
+
+		//
 	*/
 	//
 	return result, err
