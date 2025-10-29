@@ -5,7 +5,7 @@ import (
 	"tui/backend/types/shared"
 )
 
-// represents an acquistion instance
+// represents a conversion instance
 type Conversion struct {
 	shared.Workflow
 }
