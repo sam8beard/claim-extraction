@@ -14,6 +14,7 @@ import (
 type IsWorkflow interface {
 	InitializeClients() error
 	Run() error
+	Upload() error
 }
 
 func (w *Workflow) InitializeClients() error {

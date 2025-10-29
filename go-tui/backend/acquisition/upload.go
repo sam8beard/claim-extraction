@@ -17,7 +17,7 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-type UploadResults struct {
+type UploadResult struct {
 	SuccessUploadCount int
 	ExistingFilesCount int
 	SuccessFiles       []shared.File
@@ -45,9 +45,9 @@ func NewHostName(fileURL string) (string, error) {
 	return hostName, err
 }
 
-func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResults, error) {
+func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResult, error) {
 	var err error
-	uploadResults := UploadResults{
+	uploadResults := UploadResult{
 		SuccessFiles: make([]shared.File, 0),
 		FailedFiles:  make([]shared.FailedFile, 0),
 	}

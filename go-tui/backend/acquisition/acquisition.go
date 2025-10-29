@@ -81,7 +81,7 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	result.Log = append(result.Log, skippedMsg)
 
 	// 3) upload to minio
-	uploadResults, err := a.Upload(&downloadResults.SuccessFiles)
+	uploadResult, err := a.Upload(&downloadResults.SuccessFiles)
 	if err != nil {
 		return result, err
 	} // if
@@ -89,20 +89,20 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	// 5) populate AcquisitionResult.Log
 
 	// total count of successfully downloaded and logged files
-	successfulCount := uploadResults.SuccessUploadCount
+	successfulCount := uploadResult.SuccessUploadCount
 	// total count of files requested by user
 	requestedFileCount := input.FileCount
 
 	// add final log messages
 	result.Log = append(result.Log, fmt.Sprintf("%d file(s) requested", requestedFileCount))
-	existingCount := downloadResults.ExistingFilesCount + uploadResults.ExistingFilesCount
+	existingCount := downloadResults.ExistingFilesCount + uploadResult.ExistingFilesCount
 	existingMsg := fmt.Sprintf("%d files already exist in database", existingCount)
 	result.Log = append(result.Log, existingMsg)
 	result.Log = append(result.Log, fmt.Sprintf("%d file(s) downloaded, stored, and logged in database", successfulCount))
 
 	// add files to acquisition object
-	sfiles := uploadResults.SuccessFiles
-	ffiles := uploadResults.FailedFiles
+	sfiles := uploadResult.SuccessFiles
+	ffiles := uploadResult.FailedFiles
 	result.SuccessFiles = append(result.SuccessFiles, sfiles...)
 	result.FailedFiles = append(result.FailedFiles, ffiles...)
 
