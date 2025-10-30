@@ -1,6 +1,7 @@
 package acquisition
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +37,7 @@ type Result struct {
 }
 
 // maximum pages allowed to visit
-const MaxPages = 50
+const MaxPages = 15 // 50
 
 // builds the base url
 func BuildBaseUrl(query string) string {
@@ -69,7 +70,7 @@ func MakeQueryURL(query string, pageNo int) (string, error) {
 	return fmt.Sprintf("%s%d", query, pageNo), nil
 } // MakeQueryUrl
 
-func ResponseHandler(r *colly.Response, finalResults *ScrapeResult, seenURLs *[]string, maxFiles int) {
+func ResponseHandler(ctx context.Context, r *colly.Response, finalResults *ScrapeResult, seenURLs *[]string, maxFiles int) {
 	// invalid response
 	if r.StatusCode != 200 {
 		fmt.Println(r.Headers)
@@ -101,7 +102,7 @@ Scrapes for files using query and number of files provided by user
 
 Returns a ScrapeResult
 */
-func Scrape(query string, maxFiles int) (ScrapeResult, error) {
+func Scrape(ctx context.Context, query string, maxFiles int) (ScrapeResult, error) {
 	seenURLs := make([]string, 0)
 	var err error
 	finalResults := ScrapeResult{
@@ -109,7 +110,7 @@ func Scrape(query string, maxFiles int) (ScrapeResult, error) {
 	}
 	c := colly.NewCollector()
 	c.OnResponse(func(r *colly.Response) {
-		ResponseHandler(r, &finalResults, &seenURLs, maxFiles)
+		ResponseHandler(ctx, r, &finalResults, &seenURLs, maxFiles)
 	})
 
 	baseURL := BuildBaseUrl(query)

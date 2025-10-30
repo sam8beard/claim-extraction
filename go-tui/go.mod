@@ -11,7 +11,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kevm/bubbleo v0.1.5
 	github.com/minio/minio-go/v7 v7.0.95
-	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -63,4 +62,5 @@ require (
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 )

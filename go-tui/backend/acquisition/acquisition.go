@@ -4,6 +4,7 @@ Handles the orchestration of the acquisition flow
 package acquisition
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"tui/backend/types"
@@ -16,7 +17,7 @@ type Acquisition struct {
 }
 
 // Executes the acquisition flow
-func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult, error) {
+func (a *Acquisition) Run(ctx context.Context, input types.AcquisitionInput) (types.AcquisitionResult, error) {
 	var err error
 	result := types.AcquisitionResult{
 		SuccessFiles: make([]shared.File, 0),
@@ -31,7 +32,7 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	defer a.PGClient.Close()
 
 	// 1) scrape urls
-	scrapeResult, err := Scrape(input.Query, input.FileCount)
+	scrapeResult, err := Scrape(ctx, input.Query, input.FileCount)
 	if err != nil {
 		err := errors.New("could not visit url")
 		return result, err
@@ -48,7 +49,7 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 
 	// 2) download files
 	urlsToDownload := scrapeResult.URLMap
-	downloadResults, err := a.DownloadFiles(urlsToDownload)
+	downloadResults, err := a.Download(ctx, urlsToDownload)
 	if err != nil {
 		return result, err
 	} // if
@@ -81,7 +82,7 @@ func (a *Acquisition) Run(input types.AcquisitionInput) (types.AcquisitionResult
 	result.Log = append(result.Log, skippedMsg)
 
 	// 3) upload to minio
-	uploadResult, err := a.Upload(&downloadResults.SuccessFiles)
+	uploadResult, err := a.Upload(ctx, &downloadResults.SuccessFiles)
 	if err != nil {
 		return result, err
 	} // if

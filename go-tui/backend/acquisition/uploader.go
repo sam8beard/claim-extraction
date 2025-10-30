@@ -45,7 +45,7 @@ func NewHostName(fileURL string) (string, error) {
 	return hostName, err
 }
 
-func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResult, error) {
+func (a *Acquisition) Upload(ctx context.Context, files *map[shared.FileID]io.ReadCloser) (UploadResult, error) {
 	var err error
 	uploadResults := UploadResult{
 		SuccessFiles: make([]shared.File, 0),
@@ -137,7 +137,6 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResult, er
 			return uploadResults, err
 		} // if
 
-		ctx := context.Background()
 		opts := minio.PutObjectOptions{
 			ContentType: "application/pdf",
 		}
@@ -177,10 +176,10 @@ func (a *Acquisition) Upload(files *map[FileKey]io.ReadCloser) (UploadResult, er
 		} else {
 			uploadResults.SuccessUploadCount++
 			file := shared.File{
-				FileName: title,
-				Key:      fileKey,
-				URL:      url,
-				Status:   "downloaded",
+				FileName:  title,
+				ObjectKey: fileKey,
+				URL:       url,
+				Status:    "downloaded",
 			}
 			uploadResults.SuccessFiles = append(uploadResults.SuccessFiles, file)
 		} // if

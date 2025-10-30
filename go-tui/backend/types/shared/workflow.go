@@ -13,8 +13,9 @@ import (
 
 type IsWorkflow interface {
 	InitializeClients() error
-	Run() error
-	Upload() error
+	Run(ctx context.Context) error
+	Upload() (UploadResult, error)
+	Download() (DownloadResult, error)
 }
 
 func (w *Workflow) InitializeClients() error {

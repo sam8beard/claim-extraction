@@ -6,16 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"tui/backend/types/shared"
 )
 
-type FileKey struct {
-	Title string
-	URL   string
-}
-
 type DownloadResults struct {
-	FailedFiles        map[FileKey]string
-	SuccessFiles       map[FileKey]io.ReadCloser
+	FailedFiles        map[shared.FileID]string
+	SuccessFiles       map[shared.FileID]io.ReadCloser
 	DownloadCount      int
 	ExistingFilesCount int
 }
@@ -23,30 +19,30 @@ type DownloadResults struct {
 // THIS IS WHERE WE DETERMINE WHAT FILES ARE ALREADY IN OUR DATABASE
 // WHAT SHOULD WE DO?
 // checks if file already exists in database
-func (a *Acquisition) CheckFile(file FileKey) bool {
+func (a *Acquisition) checkFile(ctx context.Context, file shared.FileID) bool {
 	var exists bool
 	title := fmt.Sprint(file.Title, ".pdf")
 	query := `
 	SELECT EXISTS (SELECT 1 FROM documents WHERE file_name = $1)
 	`
-	_ = a.PGClient.QueryRow(context.Background(), query, title).Scan(&exists)
+	_ = a.PGClient.QueryRow(ctx, query, title).Scan(&exists)
 
 	return exists
-} // CheckFile
+} // checkFile
 
-func (a *Acquisition) DownloadFiles(urlMap map[string]string) (DownloadResults, error) {
+func (a *Acquisition) Download(ctx context.Context, urlMap map[string]string) (DownloadResults, error) {
 	var err error
 	results := DownloadResults{
-		FailedFiles:  make(map[FileKey]string),
-		SuccessFiles: make(map[FileKey]io.ReadCloser, 0),
+		FailedFiles:  make(map[shared.FileID]string),
+		SuccessFiles: make(map[shared.FileID]io.ReadCloser, 0),
 	}
 	for title, url := range urlMap {
-		fileKey := FileKey{
+		fileKey := shared.FileID{
 			Title: title,
 			URL:   url,
 		}
 		// check if URL is in database before it even gets that far
-		exists := a.CheckFile(fileKey)
+		exists := a.checkFile(ctx, fileKey)
 		// existing file
 		if exists {
 			results.ExistingFilesCount++

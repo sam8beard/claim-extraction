@@ -1,16 +1,19 @@
 package acquisition
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 	"tui/backend/types"
 )
 
+var ctx = context.Background()
+
 func NewAcqInput() types.AcquisitionInput {
 	input := types.AcquisitionInput{
 		Query:     "consulting white papers in 2025",
-		FileCount: 50,
+		FileCount: 20,
 	}
 	return input
 } // NewAcqInput
@@ -33,8 +36,8 @@ func TestAcquisition(t *testing.T) {
 	log.SetOutput(file)
 	a := NewAcquisition(t)
 	input := NewAcqInput()
-
-	output, err := a.Run(input)
+	ctx := context.Background()
+	output, err := a.Run(ctx, input)
 	if err != nil {
 		t.Fatal(err)
 	} // err
@@ -59,7 +62,7 @@ func TestInitializeClients(t *testing.T) {
 // PASS
 func TestScrape(t *testing.T) {
 	input := NewAcqInput()
-	scrapeResult, err := Scrape(input.Query, input.FileCount)
+	scrapeResult, err := Scrape(ctx, input.Query, input.FileCount)
 	if err != nil {
 		t.Fatal(err)
 	} // if
@@ -76,8 +79,8 @@ func TestScrape(t *testing.T) {
 func TestDownload(t *testing.T) {
 	a := NewAcquisition(t)
 	input := NewAcqInput()
-	scrapeResult, _ := Scrape(input.Query, input.FileCount)
-	downloadResult, err := a.DownloadFiles(scrapeResult.URLMap)
+	scrapeResult, _ := Scrape(ctx, input.Query, input.FileCount)
+	downloadResult, err := a.Download(ctx, scrapeResult.URLMap)
 	if err != nil {
 		t.Fatal(err)
 	} // if
@@ -100,19 +103,19 @@ func TestDownload(t *testing.T) {
 func TestUpload(t *testing.T) {
 	a := NewAcquisition(t)
 	input := NewAcqInput()
-	scrapeResult, _ := Scrape(input.Query, input.FileCount)
-	downloadResult, err := a.DownloadFiles(scrapeResult.URLMap)
+	scrapeResult, _ := Scrape(ctx, input.Query, input.FileCount)
+	downloadResult, err := a.Download(ctx, scrapeResult.URLMap)
 	if err != nil {
 		t.Fatal(err)
 	} // if
 
-	uploadResult, err := a.Upload(&downloadResult.SuccessFiles)
+	uploadResult, err := a.Upload(ctx, &downloadResult.SuccessFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, succFile := range uploadResult.SuccessFiles {
-		t.Logf("%s\t%s\t%s\t%s", succFile.FileName, succFile.Key, succFile.URL, succFile.Status)
+		t.Logf("%s\t%s\t%s\t%s", succFile.FileName, succFile.ObjectKey, succFile.URL, succFile.Status)
 	} // for
 	t.Log("\n\n\n")
 	for _, failedFile := range uploadResult.FailedFiles {
