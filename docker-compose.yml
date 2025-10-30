@@ -1,5 +1,11 @@
 version: '3.8'
 
+
+# ADD ENV VARS INSTEAD OF STATIC VARS 
+# FOR FINAL RELEASE
+# 
+# ADJUST PORTS 
+
 services: 
   db: 
     image: postgres:16
@@ -21,3 +27,13 @@ services:
       - "1234:80"
     volumes: 
       - ./pgadmin-data:/var/lib/pgadmin
+
+  # minio goes here
+      #
+      #
+      #
+
+  # searxng goes here
+      #
+      #
+      #

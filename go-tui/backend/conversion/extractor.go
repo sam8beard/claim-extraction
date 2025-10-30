@@ -9,6 +9,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+
 	"tui/backend/types/shared"
 )
 
@@ -34,7 +35,7 @@ type Locker struct {
 	e  ExtractionResult
 }
 
-func (l *Locker) log(f shared.FileID, u interface{}) {
+func (l *Locker) log(f shared.FileID, u any) {
 	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
 	defer l.mu.Unlock()
 
@@ -61,7 +62,6 @@ func (l *Locker) log(f shared.FileID, u interface{}) {
 	// 	// add successfully converted file
 	// 	e.SuccessFiles[fileToAdd] = []byte(success.Body)
 	// }
-
 }
 
 func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*ExtractionResult, error) {
@@ -89,6 +89,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	wg.Add(2)
 
 	readStdout := func() {
+		wg.Done()
 		// Reading converted files line by line
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
@@ -115,6 +116,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	go readStdout()
 
 	readStderr := func() {
+		wg.Done()
 		// Read errors from std err
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
@@ -181,5 +183,4 @@ func buildJSON(l *Locker, id shared.FileID, r io.ReadCloser) ([]byte, error) {
 		return data, err
 	} // if
 	return data, err
-
 } // buildJSON
