@@ -9,7 +9,6 @@ import (
 	"io"
 	"os/exec"
 	"sync"
-
 	"tui/backend/types/shared"
 )
 
@@ -35,7 +34,7 @@ type Locker struct {
 	e  ExtractionResult
 }
 
-func (l *Locker) log(f shared.FileID, u any) {
+func (l *Locker) log(f shared.FileID, u interface{}) {
 	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
 	defer l.mu.Unlock()
 
@@ -47,6 +46,22 @@ func (l *Locker) log(f shared.FileID, u any) {
 		// this is a successful file
 		l.e.SuccessFiles[f] = val
 	} // switch
+
+	// if unknown
+	// if  == empty {
+	// 	// this is an unsuccessful file
+
+	// } else {
+	// 	// this is a successful file
+	// 	fileToAdd := shared.FileID{
+	// 		Title:     string(success.Title),
+	// 		ObjectKey: string(success.ObjectKey),
+	// 		URL:       string(success.URL),
+	// 	}
+	// 	// add successfully converted file
+	// 	e.SuccessFiles[fileToAdd] = []byte(success.Body)
+	// }
+
 }
 
 func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*ExtractionResult, error) {
@@ -166,4 +181,5 @@ func buildJSON(l *Locker, id shared.FileID, r io.ReadCloser) ([]byte, error) {
 		return data, err
 	} // if
 	return data, err
+
 } // buildJSON
