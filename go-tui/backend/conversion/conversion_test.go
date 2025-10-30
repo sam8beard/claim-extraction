@@ -3,9 +3,12 @@ package conversion
 import (
 	"context"
 	"log"
+	"sync"
 	"testing"
+
 	"tui/backend/acquisition"
 	"tui/backend/types"
+	"tui/backend/types/shared"
 )
 
 var ctx = context.Background()
@@ -49,11 +52,9 @@ func TestDownload(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func TestExtract(t *testing.T) {
-
 	input := NewConversionInput()
 	con := NewConversion()
 
@@ -67,73 +68,62 @@ func TestExtract(t *testing.T) {
 	}
 }
 
-// func TestDownload(t *testing.T) {
-// 	conv := NewAcquisition()
-// 	input := types.ConversionInput{
-// 		SuccessFiles: []shared.File{
-// 			{
-// 				Title:     "test.pdf",
-// 				ObjectKey: "raw/test.pdf",
-// 				URL:       "http://example.com/test.pdf",
-// 			},
-// 		},
-// 	}
-// 	// You may need to mock MinioClient here for isolated testing
-// 	result, err := conv.Download(context.Background(), input)
-// 	if err != nil {
-// 		t.Fatalf("Download failed: %v", err)
-// 	}
-// 	if len(result.SuccessFiles) == 0 {
-// 		t.Error("No files downloaded")
-// 	}
-// }
+type Lockbox struct {
+	mu sync.Mutex
+	r  Result
+}
+type Result struct {
+	data map[shared.FileID][]byte
+	err  map[shared.FileID]string
+}
 
-// func TestExtract(t *testing.T) {
-// 	conv := &Conversion{}
+func (l *Lockbox) modifyLocker(f shared.FileID, u any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-// 	// Prepare a dummy DownloadResult with a sample PDF file
-// 	file, err := os.Open("testdata/sample.pdf")
-// 	if err != nil {
-// 		t.Skip("sample.pdf not found, skipping Extract test")
-// 	}
-// 	defer file.Close()
-// 	fileID := shared.FileID{
-// 		Title:     "sample.pdf",
-// 		ObjectKey: "raw/sample.pdf",
-// 		URL:       "http://example.com/sample.pdf",
-// 	}
-// 	downloadResult := &shared.DownloadResult{
-// 		SuccessFiles: map[shared.FileID]io.ReadCloser{
-// 			fileID: file,
-// 		},
-// 		FailedFiles: make(map[shared.FileID]string),
-// 	}
-// 	result, err := conv.Extract(context.Background(), downloadResult)
-// 	if err != nil {
-// 		t.Fatalf("Extract failed: %v", err)
-// 	}
-// 	if len(result.SuccessFiles) == 0 {
-// 		t.Error("No files extracted")
-// 	}
-// }
+	switch val := u.(type) {
+	case string:
+		l.r.err[f] = val
+	case []byte:
+		l.r.data[f] = val
+	}
+}
 
-// func TestRun(t *testing.T) {
-// 	conv := &conversion.Conversion{}
+func TestExtractTwo(t *testing.T) {
+	msg := []byte("hello")
+	fmsg := "hello"
 
-// 	input := types.ConversionInput{
-// 		SuccessFiles: []shared.File{
+	file := shared.FileID{
+		Title: string("cool"),
+	}
+	fFile := shared.FileID{
+		Title: string("not cool"),
+	}
 
-// 			Title:     "test.pdf",
-// 			ObjectKey: "raw/test.pdf",
-// 			URL:       "http://example.com/test.pdf",
-// 		},
-// 	}
-// 	// You may need to mock clients for isolated testing
-// 	result, err := conv.Run(context.Background(), input)
-// 	if err != nil {
-// 		t.Fatalf("Run failed: %v", err)
-// 	}
-// 	if len(result.ConvertedFiles) == 0 {
-// 		t.Error("No files converted")
-// 	}
-// }
+	l := Lockbox{
+		r: Result{
+			data: make(map[shared.FileID][]byte),
+			err:  make(map[shared.FileID]string),
+		},
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	doSomethingGood := func() {
+		defer wg.Done()
+		l.modifyLocker(file, msg)
+	}
+	go doSomethingGood()
+	doSomethingBad := func() {
+		defer wg.Done()
+		l.modifyLocker(fFile, fmsg)
+	}
+	go doSomethingBad()
+
+	wg.Wait()
+
+	t.Log("firing")
+	t.Log(l.r.data)
+	t.Log(l.r.err)
+}
