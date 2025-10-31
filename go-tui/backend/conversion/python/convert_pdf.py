@@ -15,7 +15,17 @@ def main():
             line = sys.stdin.readline()
             raw_data = build_data(line)
             json_data = json.dumps(raw_data)
-            sys.stdout.write(raw_data)
+            
+            '''
+            Will need to switch sys.stdout.write() 
+            with print(). For some reason, I couldn't get 
+            write() to work, maybe it has something to do with me 
+            making the output unbuffered? Make sure to confirm 
+            that print() will work for all edge cases, will have to 
+            seek solution for printing out to stderr. 
+            ''' 
+            print(raw_data)
+            # sys.stdout.write(raw_data)
             sys.stdout.flush()
             
         # ONLY EVER PRINTING TO STDERR

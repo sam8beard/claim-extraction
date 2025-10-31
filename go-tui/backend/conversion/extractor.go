@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 
 	"tui/backend/types/shared"
@@ -86,7 +88,30 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (Extr
 	var wg sync.WaitGroup
 
 	files := d.SuccessFiles
-	cmd := exec.Command("python3", "u", "python/convert_pdf.py")
+	/*
+
+		Manually set python execution path and script path. By default,
+		exec.Command uses the system environment for the executable.
+		We need to use the environment located in venv/bin/python3 in
+		order to execute the script so the libraries installed inside
+		the virtual environment can be recognized.
+
+	*/
+	projectRoot, _ := os.Getwd()
+	pythonDir := filepath.Join(projectRoot, "python")
+	venvDir := filepath.Join(pythonDir, "venv")
+	pythonExec := filepath.Join(venvDir, "bin", "python3")
+	scriptPath := filepath.Join(pythonDir, "testing.py")
+	// pythonVenv := "python/venv/bin/python3.12"
+	cmd := exec.Command(pythonExec, "-u", scriptPath)
+	cmd.Dir = pythonDir
+
+	// copy curr environment, but inject venv info
+	// will need to initialize another venv in the python/ dir here for this to work!!!
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("VIRTUAL_ENV=%s", venvDir),
+		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
+	)
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -102,13 +127,10 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (Extr
 	// tell the waitgroup we're waiting for two routines to finish
 	// wg.Add(2)
 	readStdout := func() {
-<<<<<<< HEAD
 		wg.Done()
-=======
 		wg.Add(1)
 		defer wg.Done()
 
->>>>>>> testing/piping-issue
 		// Reading converted files line by line
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
