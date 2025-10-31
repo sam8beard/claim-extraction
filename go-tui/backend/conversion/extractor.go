@@ -39,6 +39,7 @@ type Locker struct {
 func (l *Locker) log(f shared.FileID, u any) {
 	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
 	defer l.mu.Unlock()
+	log.Fatalf("Firing %v\t and %v", f, u)
 
 	switch val := u.(type) {
 	case string:
@@ -50,7 +51,15 @@ func (l *Locker) log(f shared.FileID, u any) {
 	} // switch
 }
 
-func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*ExtractionResult, error) {
+// func reader(scanner *bufio.Scanner) {
+// 	mu.Lock()
+// 	defer mu.Unlock()
+// 	for scanner.Scan() {
+// 		fmt.Println()
+// 	}
+
+// }
+func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (ExtractionResult, error) {
 	var err error
 	l := Locker{
 		e: ExtractionResult{
@@ -62,27 +71,24 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 	var wg sync.WaitGroup
 
 	files := d.SuccessFiles
-	cmd := exec.Command("python3", "./python/convert_pdf.py")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		panic(err)
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		panic(err)
-	}
+	cmd := exec.Command("python3", "u", "python/convert_pdf.py")
+	stdin, _ := cmd.StdinPipe()
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	// // initialize scanners for each pipe
+	// scanout := bufio.NewScanner(stdout)
+	// scanerr := bufio.NewScanner(stderr)
 
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	} // if
+
 	// tell the waitgroup we're waiting for two routines to finish
-	wg.Add(2)
+	// wg.Add(2)
 	readStdout := func() {
-		wg.Done()
+		wg.Add(1)
+		defer wg.Done()
 
 		// Reading converted files line by line
 		scanner := bufio.NewScanner(stdout)
@@ -91,7 +97,7 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 			if err := json.Unmarshal(scanner.Bytes(), &success); err != nil {
 				log.Printf("error decoding response: %v", err)
 				if e, ok := err.(*json.SyntaxError); ok {
-					log.Printf("syntax error at byte offset %d", e.Offset)
+					log.Printf("syntax error at byte offset %d, %v", e.Offset, success)
 				} // if
 				log.Printf("success block: %v", success)
 
@@ -102,6 +108,7 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 				ObjectKey: success.ObjectKey,
 				URL:       success.URL,
 			}
+			log.Printf("%v", fileToAdd)
 			// add successfully converted file
 			l.log(fileToAdd, success.Body)
 		} // for
@@ -111,14 +118,15 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 
 	readStderr := func() {
 		// Read errors from std err
-		wg.Done()
+		wg.Add(1)
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			var failure FileJSON
 			if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
 				log.Printf("error decoding response: %v", err)
 				if e, ok := err.(*json.SyntaxError); ok {
-					log.Printf("syntax error at byte offset %d", e.Offset)
+					log.Printf("syntax error at byte offset %d, %v", e.Offset, failure)
 				} // if
 				log.Printf("failure block: %v", failure)
 			}
@@ -133,6 +141,7 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 	} // Routine
 
 	go readStderr()
+	wg.Wait()
 
 	// write json objects
 	for id, r := range files {
@@ -158,9 +167,10 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (*Ext
 	} // for
 	stdin.Close()
 
-	wg.Wait()
+	// wg.Wait()
 	cmd.Wait()
-	return &l.e, err
+
+	return l.e, err
 } // Extract
 
 /*

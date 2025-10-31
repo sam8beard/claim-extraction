@@ -12,18 +12,19 @@ def main():
         # _ = sys.stdin.read()
             # print(json.dumps)
         try: 
+            line = sys.stdin.readline()
             raw_data = build_data(line)
             json_data = json.dumps(raw_data)
-            sys.stdin.write(raw_data)
-            sys.stdin.write("\n")
-            sys.stdin.flush()
+            sys.stdout.write(raw_data)
+            sys.stdout.flush()
+            
+        # ONLY EVER PRINTING TO STDERR
         except Exception as e:
             error_msg = {
                 "error": "error processing file"
             }
-            json_data = json.dumps(raw_data)
+            json_data = json.dumps(error_msg)
             sys.stderr.write(json_data)
-            sys.stderr.write("\n")
             sys.stderr.flush()
 
 
