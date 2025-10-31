@@ -10,7 +10,10 @@ func main() {
 		fmt.Println(err)
 	} // if
 
-	for _, result := range output {
-		fmt.Printf("%s\n", result)
-	} // for
+	succFiles := output.SuccessFiles
+	failFiles := output.FailedFiles
+
+	fmt.Printf("\nSuccess Files: %v\n", succFiles)
+
+	fmt.Printf("\nFailed Files: %v\n", failFiles)
 }

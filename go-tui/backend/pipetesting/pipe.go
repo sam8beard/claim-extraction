@@ -7,17 +7,47 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 )
 
 type Result struct {
 	Name string `json:"name,omitempty"`
-	Job  string `json:"job,omitempty"`
+	ID   string `json:"id,omitempty"`
 }
 
-func PipePython() ([]Result, error) {
+type Response struct {
+	SuccessFiles map[string]string
+	FailedFiles  map[string]string
+}
+
+type Locker struct {
+	mu sync.Mutex
+	r  Response
+}
+
+func (l *Locker) log(name string, id string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	switch id {
+	case "1234":
+		l.r.SuccessFiles[name] = id
+	case "5432":
+		l.r.FailedFiles[name] = id
+
+	}
+}
+
+func PipePython() (Response, error) {
 	var err error
 	results := make([]Result, 0)
 
+	l := Locker{
+		r: Response{
+			SuccessFiles: make(map[string]string),
+			FailedFiles:  make(map[string]string),
+		},
+	}
 	/*
 
 		Manually set python execution path and script path. By default,
@@ -42,25 +72,45 @@ func PipePython() ([]Result, error) {
 		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
 	)
 
+	stuff := []Result{
+		{
+			Name: "Sammy",
+			ID:   "1234",
+		},
+		{
+			Name: "Jason",
+			ID:   "5432",
+		},
+	}
+
+	var wg sync.WaitGroup
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 	// start python program
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	} // if
-	// write to stdin
-	stuff := []Result{
-		{
-			Name: "Sammy",
-			Job:  "Welder",
-		},
-		{
-			Name: "Jason",
-		},
+
+	wg.Add(1)
+	readStdout := func() {
+		defer wg.Done()
+
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			var output Result
+			if err := json.Unmarshal(scanner.Bytes(), &output); err != nil {
+				fmt.Print(err)
+			} // if
+			l.log(output.Name, output.ID)
+			results = append(results, output)
+
+		} // for
 	}
 
+	go readStdout()
+
 	for _, item := range stuff {
-		fmt.Printf("%v", item)
+		// fmt.Printf("%v", item)
 		json_item, _ := json.Marshal(item)
 		if _, err := stdin.Write(json_item); err != nil {
 			panic(err)
@@ -71,15 +121,7 @@ func PipePython() ([]Result, error) {
 
 	stdin.Close()
 
-	// read from stdout
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		var output Result
-		if err := json.Unmarshal(scanner.Bytes(), &output); err != nil {
-			fmt.Print(err)
-		} // if
-		results = append(results, output)
-	} // for
+	wg.Wait()
 	cmd.Wait()
-	return results, err
+	return l.r, err
 } // TestStdin

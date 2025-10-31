@@ -6,7 +6,7 @@ import sys, json, base64
 def main(): 
 
     for line in sys.stdin: 
-        data = do_something(line)
+        data = process(line)
         json_object = json.dumps(data)
         print(json_object)
         sys.stdin.flush()
@@ -14,13 +14,15 @@ def main():
 
 
 
-def do_something(line):
+def process(line):
     data = json.loads(line) 
+    new_data = ""
     # ACCOUNT FOR OMITTED FIELDS!!!
-    new_name = f"Old name: {data['name']}, New name: Jerry"
-    new_job = f"Old job: {data['job']}, New job: Plumber"
-    new_data = {"name": new_name, "job": new_job}
-    return new_data
+    for key, value in data.items(): 
+        if key == "name": 
+            new_name = value.upper()
+            new_data = {"name": new_name, "id": data["id"] }
+            return new_data
 
 
 
