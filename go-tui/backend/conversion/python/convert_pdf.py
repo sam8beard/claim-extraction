@@ -7,17 +7,40 @@ def main():
     Driver for the script
 
     '''
+
     for line in sys.stdin:
+        # _ = sys.stdin.read()
+            # print(json.dumps)
         try: 
-            sys.stdout.write(build_data(line) + "\n") 
-            sys.stdout.flush()
-        except Exception as e: 
-            error_output = { 
-            "error": str(e),
+            raw_data = build_data(line)
+            json_data = json.dumps(raw_data)
+            sys.stdin.write(raw_data)
+            sys.stdin.write("\n")
+            sys.stdin.flush()
+        except Exception as e:
+            error_msg = {
+                "error": "error processing file"
             }
-            message = json.dumps(error_output)
-            sys.stderr.write(message + "\n")
+            json_data = json.dumps(raw_data)
+            sys.stderr.write(json_data)
+            sys.stderr.write("\n")
             sys.stderr.flush()
+
+
+        # sys.stdout.flush()
+        # sys.stderr.write("Reached convert_to_txt()\n")
+        # try: 
+        #     data = sys.
+        #     output = build_data(line) + "\n"
+        #     sys.stdout.write(output)
+        #     sys.stdout.flush()
+        # except Exception as e: 
+        #     error_output = { 
+        #     "error": str(e),
+        #     }
+        #     message = json.dumps(error_output)
+        #     sys.stderr.write(message + "\n")
+        #     sys.stderr.flush()
     
 def build_data(line): 
     '''
@@ -32,29 +55,31 @@ def build_data(line):
     '''
     try:
         # read from stdin
+        # decoder = json.JSONDecoder()
         payload = json.loads(line)
-        data = payload['data']
+        # json.load(line)
 
         # get values
-        title = data['title']
-        body = data['body']
-        old_key = data['objectKey']
-        url = data['url']
+        title = payload['title']
+        body = payload['body']
+        old_key = payload['objectKey']
+        url = payload['url']
 
         # process file
-        processed = convert_to_txt(base64.b64decode(body))
+        converted_body = str(base64.b64decode(body))
+        processed = convert_to_txt(converted_body)
         
         # get new object key
         new_key = get_new_object_key(old_key)
 
         output = {
-            "title": title,
-            "objectKey": new_key,
-            "url": url,
-            "body": base64.b64encode(processed).decode('utf-8'),
+            "title": str(title),
+            "objectKey": str(new_key),
+            "url": str(url), 
+            "body": base64.b64encode(processed).encode('utf-8'), # binary bytes encoded 
         }
-        # encode object
-        return json.dumps(output)
+        # return json object
+        return output
     except Exception as e: 
         
         return  e

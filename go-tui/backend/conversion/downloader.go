@@ -12,7 +12,7 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) (*shared.DownloadResult, error) {
+func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) (shared.DownloadResult, error) {
 	var err error
 	result := shared.DownloadResult{
 		SuccessFiles: make(map[shared.FileID]io.ReadCloser),
@@ -56,5 +56,5 @@ func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) 
 	if len(result.SuccessFiles) == 0 {
 		err = errors.New("failed to download any files")
 	} // if
-	return &result, err
+	return result, err
 } // GetPDFs
