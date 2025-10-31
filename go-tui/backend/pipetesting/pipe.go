@@ -17,6 +17,16 @@ type Result struct {
 func PipePython() ([]Result, error) {
 	var err error
 	results := make([]Result, 0)
+
+	/*
+
+		Manually set python execution path and script path. By default,
+		exec.Command uses the system environment for the executable.
+		We need to use the environment located in venv/bin/python3 in
+		order to execute the script so the libraries installed inside
+		the virtual environment can be recognized.
+
+	*/
 	projectRoot, _ := os.Getwd()
 	pythonDir := filepath.Join(projectRoot, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
