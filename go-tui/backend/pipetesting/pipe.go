@@ -2,15 +2,21 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func PipePython() ([][]byte, error) {
+type Result struct {
+	Name string `json:"name,omitempty"`
+	Job  string `json:"job,omitempty"`
+}
+
+func PipePython() ([]Result, error) {
 	var err error
-	results := make([][]byte, 0)
+	results := make([]Result, 0)
 	projectRoot, _ := os.Getwd()
 	pythonDir := filepath.Join(projectRoot, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
@@ -33,17 +39,24 @@ func PipePython() ([][]byte, error) {
 		panic(err)
 	} // if
 	// write to stdin
-	stuff := []string{
-		"thing 1",
-		"thing 2",
-		"thing 3",
-		"thing 4",
+	stuff := []Result{
+		{
+			Name: "Sammy",
+			Job:  "Welder",
+		},
+		{
+			Name: "Jason",
+		},
 	}
 
 	for _, item := range stuff {
-		if _, err := stdin.Write([]byte(item)); err != nil {
+		fmt.Printf("%v", item)
+		json_item, _ := json.Marshal(item)
+		if _, err := stdin.Write(json_item); err != nil {
 			panic(err)
 		} // if
+		_, err = stdin.Write([]byte("\n"))
+
 	} // for
 
 	stdin.Close()
@@ -51,9 +64,12 @@ func PipePython() ([][]byte, error) {
 	// read from stdout
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		results = append(results, scanner.Bytes())
+		var output Result
+		if err := json.Unmarshal(scanner.Bytes(), &output); err != nil {
+			fmt.Print(err)
+		} // if
+		results = append(results, output)
 	} // for
 	cmd.Wait()
-
 	return results, err
 } // TestStdin
