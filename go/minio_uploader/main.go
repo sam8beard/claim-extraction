@@ -26,7 +26,6 @@ func main() {
 		fmt.Println(err)
 		return
 	} // if
-
 	// create MinIO client
 	endpoint := "localhost:9000"
 	accessKeyID := "muel"
