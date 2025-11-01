@@ -9,6 +9,7 @@ go-tui/backend/pipetesting/python/__pycache__/
 go-tui/backend/pipetesting/python/**/*.pyo
 go-tui/backend/pipetesting/python/*.egg-info/
 go-tui/backend/pipetesting/python/**/*.pyo
+go-tui/backend/conversion/python/venv/*
 
 # Vscode
 .vscode/
