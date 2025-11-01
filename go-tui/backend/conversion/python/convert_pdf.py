@@ -1,58 +1,43 @@
-import boto3, os, urllib.parse, io, pymupdf, logging
-import psycopg2
+import os, urllib.parse, io, pymupdf, logging
 import sys, json, base64
-
+import traceback
 def main(): 
     '''
+
     Driver for the script
 
     '''
 
     for line in sys.stdin:
-        # _ = sys.stdin.read()
             # print(json.dumps)
-        try: 
-            line = sys.stdin.readline()
-            raw_data = build_data(line)
-            json_data = json.dumps(raw_data)
-            
-            '''
-            Will need to switch sys.stdout.write() 
-            with print(). For some reason, I couldn't get 
-            write() to work, maybe it has something to do with me 
-            making the output unbuffered? Make sure to confirm 
-            that print() will work for all edge cases, will have to 
-            seek solution for printing out to stderr. 
-            ''' 
-            print(raw_data)
-            # sys.stdout.write(raw_data)
-            sys.stdout.flush()
-            
-        # ONLY EVER PRINTING TO STDERR
-        except Exception as e:
-            error_msg = {
-                "error": "error processing file"
-            }
-            json_data = json.dumps(error_msg)
-            sys.stderr.write(json_data)
-            sys.stderr.flush()
-
-
-        # sys.stdout.flush()
-        # sys.stderr.write("Reached convert_to_txt()\n")
-        # try: 
-        #     data = sys.
-        #     output = build_data(line) + "\n"
-        #     sys.stdout.write(output)
-        #     sys.stdout.flush()
-        # except Exception as e: 
-        #     error_output = { 
-        #     "error": str(e),
-        #     }
-        #     message = json.dumps(error_output)
-        #     sys.stderr.write(message + "\n")
-        #     sys.stderr.flush()
-    
+        result = build_data(line)
+        '''
+        Will need to switch sys.stdout.write() 
+        with print(). For some reason, I couldn't get 
+        write() to work, maybe it has something to do with me 
+        making the output unbuffered? Make sure to confirm 
+        that print() will work for all edge cases, will have to 
+        seek solution for printing out to stderr. 
+        
+        NOTE: 
+        Use print() if sys.std isnt working 
+        '''
+        if isinstance(result, Exception): 
+            exec_type, exec_value, trace = sys.exc_info()
+            tb_msg = "".join(traceback.format_tb(trace))
+            exc_msg = f"{tb_msg}"
+            # exec_info = [exec_type.__name__, exec_value, tb_msg]
+            # exception_msg = "\n".join(exec_info)
+            exception_json = {"error": "firing"}
+            exception_json = json.dumps(exception_json)
+            # sys.stderr.write(exception_json + "\n")
+            # sys.stderr.flush()
+            print(exception_json, file=sys.stderr, flush=True)
+        else:
+            # sys.stdout.write(result + "\n") 
+            # sys.stdout.flush()
+            print(result, file=sys.stdout, flush=True)
+       
 def build_data(line): 
     '''
     Build data to stream
@@ -65,35 +50,34 @@ def build_data(line):
 
     '''
     try:
-        # read from stdin
-        # decoder = json.JSONDecoder()
         payload = json.loads(line)
-        # json.load(line)
 
         # get values
-        title = payload['title']
-        body = payload['body']
-        old_key = payload['objectKey']
-        url = payload['url']
-
-        # process file
-        converted_body = str(base64.b64decode(body))
-        processed = convert_to_txt(converted_body)
-        
-        # get new object key
-        new_key = get_new_object_key(old_key)
-
-        output = {
-            "title": str(title),
-            "objectKey": str(new_key),
-            "url": str(url), 
-            "body": base64.b64encode(processed).encode('utf-8'), # binary bytes encoded 
-        }
+        # need to use loop to avoid omitted fields 
+        key_list = ['title', 'objectKey', 'body', 'url', 'error']
+        output = dict.fromkeys(key_list)
+        for key, value in payload.items(): 
+            # if the key is body or objectKey, we need to process them
+            # otherwise, keep same value 
+            if key == "body":
+                decoded_body = base64.b64decode(value)
+                processed_body = convert_to_txt(decoded_body)
+                # rencode to b64 and then into utf-8
+                rencoded_body = base64.b64encode(processed_body).decode('utf-8')
+                output[key] = rencoded_body
+            elif key == "objectKey": 
+                new_key = get_new_object_key(value)
+                output[key] = new_key
+                # we know there will initially be no errors coming in
+            elif key == "error": 
+                output[key] = "none" 
+            else: 
+                output[key] = value
         # return json object
+        output = json.dumps(output)
         return output
     except Exception as e: 
-        
-        return  e
+       return e 
 
 def convert_to_txt(body): 
     ''' 
@@ -148,8 +132,6 @@ def convert_to_txt(body):
 
     except Exception as e: 
         return e
-
-    assert type(processed_file) == bytes, processed_file.with_traceback()
 
     return processed_file
 

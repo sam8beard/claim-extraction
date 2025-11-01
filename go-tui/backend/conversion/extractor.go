@@ -21,10 +21,6 @@ type ExtractionResult struct {
 	SuccessFiles map[shared.FileID][]byte
 }
 
-// type entry {
-
-// }
-
 type FileJSON struct {
 	Body      string `json:"body,omitempty"`
 	Title     string `json:"title,omitempty"`
@@ -38,45 +34,27 @@ type Locker struct {
 	e  ExtractionResult
 }
 
-func (l *Locker) log(f shared.FileID, u any) {
+/*
+NOTE:
+
+I'm not sure we'll be able to use an any type here.
+The encoding/decoding process on the python side of things
+might behave weirdly.
+*/
+func (l *Locker) logSuccess(f shared.FileID, b []byte) {
 	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
 	defer l.mu.Unlock()
-	log.Fatalf("Firing %v\t and %v", f, u)
+	l.e.SuccessFiles[f] = b
+} // logSuccess
 
-	switch val := u.(type) {
-	case string:
-		// this is a failed file
-		l.e.FailedFiles[f] = val
-	case []byte:
-		// this is a successful file
-		l.e.SuccessFiles[f] = val
-	} // switch
+func (l *Locker) logFailure(f shared.FileID, msg string) {
+	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
+	defer l.mu.Unlock()
+	l.e.FailedFiles[f] = msg
 
-	// if unknown
-	// if  == empty {
-	// 	// this is an unsuccessful file
+} // logFailure
 
-	// } else {
-	// 	// this is a successful file
-	// 	fileToAdd := shared.FileID{
-	// 		Title:     string(success.Title),
-	// 		ObjectKey: string(success.ObjectKey),
-	// 		URL:       string(success.URL),
-	// 	}
-	// 	// add successfully converted file
-	// 	e.SuccessFiles[fileToAdd] = []byte(success.Body)
-	// }
-}
-
-// func reader(scanner *bufio.Scanner) {
-// 	mu.Lock()
-// 	defer mu.Unlock()
-// 	for scanner.Scan() {
-// 		fmt.Println()
-// 	}
-
-// }
-func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (ExtractionResult, error) {
+func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*ExtractionResult, error) {
 	var err error
 	l := Locker{
 		e: ExtractionResult{
@@ -85,134 +63,133 @@ func (c *Conversion) Extract(ctx context.Context, d shared.DownloadResult) (Extr
 		},
 	}
 
-	var wg sync.WaitGroup
-
 	files := d.SuccessFiles
-	/*
 
+	/*
 		Manually set python execution path and script path. By default,
 		exec.Command uses the system environment for the executable.
 		We need to use the environment located in venv/bin/python3 in
 		order to execute the script so the libraries installed inside
 		the virtual environment can be recognized.
-
 	*/
 	projectRoot, _ := os.Getwd()
 	pythonDir := filepath.Join(projectRoot, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
-	scriptPath := filepath.Join(pythonDir, "testing.py")
-	// pythonVenv := "python/venv/bin/python3.12"
+	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
 	cmd := exec.Command(pythonExec, "-u", scriptPath)
 	cmd.Dir = pythonDir
 
 	// copy curr environment, but inject venv info
-	// will need to initialize another venv in the python/ dir here for this to work!!!
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("VIRTUAL_ENV=%s", venvDir),
 		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
 	)
+	// wait group for routines
+	var wg sync.WaitGroup
+	// pipes for processing
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
 
-	// // initialize scanners for each pipe
-	// scanout := bufio.NewScanner(stdout)
-	// scanerr := bufio.NewScanner(stderr)
-
+	// start command execution
 	if err := cmd.Start(); err != nil {
 		panic(err)
 	} // if
 
 	// tell the waitgroup we're waiting for two routines to finish
-	// wg.Add(2)
-	readStdout := func() {
-		wg.Done()
-		wg.Add(1)
+	wg.Add(2)
+
+	readStdout := func(l *Locker) {
 		defer wg.Done()
 
 		// Reading converted files line by line
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			var success FileJSON
+			var fileToAdd shared.FileID
 			if err := json.Unmarshal(scanner.Bytes(), &success); err != nil {
 				log.Printf("error decoding response: %v", err)
 				if e, ok := err.(*json.SyntaxError); ok {
 					log.Printf("syntax error at byte offset %d, %v", e.Offset, success)
 				} // if
-				log.Printf("success block: %v", success)
+			} // if
 
-			}
-
-			fileToAdd := shared.FileID{
+			fileToAdd = shared.FileID{
 				Title:     success.Title,
 				ObjectKey: success.ObjectKey,
 				URL:       success.URL,
 			}
-			log.Printf("%v", fileToAdd)
-			// add successfully converted file
-			l.log(fileToAdd, success.Body)
+			utf8body := string(success.Body)
+			decodedBody, err := base64.StdEncoding.DecodeString(utf8body)
+			if err != nil {
+				log.Panic("unable to decode properly processed file")
+			} // if
+			l.logSuccess(fileToAdd, decodedBody)
 		} // for
-	}
+	} // readStdout
 
-	go readStdout()
+	go readStdout(&l)
 
-	readStderr := func() {
-		wg.Done()
-		// Read errors from std err
-		wg.Add(1)
+	readStderr := func(l *Locker) {
 		defer wg.Done()
+
+		// Reading failed files
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			var failure FileJSON
-			if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
-				log.Printf("error decoding response: %v", err)
-				if e, ok := err.(*json.SyntaxError); ok {
-					log.Printf("syntax error at byte offset %d, %v", e.Offset, failure)
+			var fileToAdd shared.FileID
+			// correctly read error
+			if json.Valid(scanner.Bytes()) {
+				if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
+					fileToAdd = shared.FileID{
+						ObjectKey: failure.Err,
+					}
+					// log the file error
+					l.logFailure(fileToAdd, fileToAdd.ObjectKey)
 				} // if
-				log.Printf("failure block: %v", failure)
-			}
-
-			fileToAdd := shared.FileID{
-				ObjectKey: string(failure.Err),
-			}
-
-			// extractionResult.FailedFiles[shared.FileID{}] = string(msg)
-			l.log(fileToAdd, string(failure.Err))
+			} else {
+				// NOTE: THIS SHOULD NEVER THROW
+				log.Fatalf("Non-JSON error: %s", scanner.Text())
+				if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
+					if e, ok := err.(*json.SyntaxError); ok {
+						log.Printf("syntax error at byte offset %d, %v", e.Offset, failure)
+					} // if
+				} // if
+			} // if
 		} // for
-	} // Routine
+	} // readStderr
 
-	go readStderr()
-	wg.Wait()
+	go readStderr(&l)
 
 	// write json objects
 	for id, r := range files {
-		raw, err := buildJSON(&l, id, r)
-		// log.Fatalf("%v", &data)
+		jsonData, err := buildJSON(id, r)
+
+		// was not able to build json from file info, log and continue
 		if err != nil {
+			msg := fmt.Sprintf("could not build json from %s", id.Title)
+			l.logFailure(id, msg)
 			continue
 		} // if
-
-		data, err := json.Marshal(raw)
-		if err != nil {
+		if _, err := stdin.Write(jsonData); err != nil {
+			// we'll panic here because there is something wrong
+			// with json object if we can't write it
 			panic(err)
-		}
-		stdin.Write(data)
-		stdin.Write([]byte("\n"))
-		// enc := json.NewEncoder(stdin)
-		// if err := enc.Encode(&data); err != nil {
-		// 	panic(err)
-		// }
-		// if err := enc.Encode("\n"); err != nil {
-		// 	panic(err)
-		// }
+		} // if
+		if _, err = stdin.Write([]byte("\n")); err != nil {
+			panic(err)
+		} // if
 	} // for
-	stdin.Close()
+	if err := stdin.Close(); err != nil {
+		panic(err)
+	} // if
 
-	// wg.Wait()
-	cmd.Wait()
-
-	return l.e, err
+	wg.Wait()
+	if err := cmd.Wait(); err != nil {
+		panic(err)
+	} // if
+	return &l.e, err
 } // Extract
 
 /*
@@ -220,35 +197,31 @@ Returns a properly encoded json object ready for streaming
 
 On error, populates ExtractionResult.FailedFiles
 */
-func buildJSON(l *Locker, id shared.FileID, r io.ReadCloser) (FileJSON, error) {
+func buildJSON(id shared.FileID, r io.ReadCloser) ([]byte, error) {
+
 	var err error
 	var buf []byte
-	var raw FileJSON
-	buf, err = io.ReadAll(r) // ERROR HERE
+	var jsonData []byte
+	var jsonObject FileJSON
+	buf, err = io.ReadAll(r)
 	if err != nil {
-		msg := fmt.Sprintf("could not read pdf %s: %s", id.ObjectKey, err.Error())
-		// e.FailedFiles[id] = msg
-		l.log(id, msg)
-		return FileJSON{}, err
+		return jsonData, err
 	} // if
 
 	// encode body in b64
 	encodedBuf := base64.StdEncoding.EncodeToString(buf)
 
 	// encode data
-	raw = FileJSON{
+	jsonObject = FileJSON{
 		Body:      encodedBuf,
 		Title:     id.Title,
 		ObjectKey: id.ObjectKey,
 		URL:       id.URL,
-		Err:       "",
+		//Err:       "",
 	}
-	// data, err := json.Marshal(raw)
-	// if err != nil {
-	// 	msg := fmt.Sprintf("could not encode json payload %s: %s", id.ObjectKey, err.Error())
-	// 	// e.FailedFiles[id] = msg
-	// 	l.log(id, msg)
-	// 	return data, err
-	// } // if
-	return raw, err
+	jsonData, err = json.Marshal(jsonObject)
+	if err != nil {
+		return jsonData, err
+	} // if
+	return jsonData, err
 } // buildJSON
