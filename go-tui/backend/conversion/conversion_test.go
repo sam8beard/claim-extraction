@@ -91,8 +91,8 @@ func randomAcqInput() types.AcquisitionInput {
 		"ai in autonomous traffic management",
 		"machine learning for predictive healthcare interventions",
 		"ai for precision agriculture monitoring"}
-	fileCount := 1 + rand.Intn(4) // random number between 1 and 4
-
+	//fileCount := 1 + rand.Intn(4) // random number between 1 and 4
+	fileCount := 20
 	return types.AcquisitionInput{
 		Query:     queries[rand.Intn(len(queries))],
 		FileCount: fileCount,

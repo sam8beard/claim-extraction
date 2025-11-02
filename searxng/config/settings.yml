@@ -1,6 +1,6 @@
 general:
   # Debug mode, only for development. Is overwritten by ${SEARXNG_DEBUG}
-  debug: false
+  debug: true
   # displayed name
   instance_name: "SearXNG"
   # For example: https://example.com/privacy
