@@ -20,9 +20,10 @@ type FailedFile struct {
 }
 
 type FileID struct {
-	Title     string
-	URL       string
-	ObjectKey string
+	Title       string
+	URL         string
+	ObjectKey   string
+	OriginalKey string
 }
 
 type MinioClient struct {

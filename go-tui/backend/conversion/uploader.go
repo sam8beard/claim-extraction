@@ -3,20 +3,26 @@ package conversion
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"github.com/minio/minio-go/v7"
+	"log"
 	"tui/backend/types/shared"
 )
 
-func (c *Conversion) Upload(ctx context.Context, e *ExtractionResult) (*shared.UploadResult, error) {
+type UploadResult struct {
+	SuccessFiles []shared.File
+	FailedFiles  []shared.FailedFile
+}
+
+func (c *Conversion) Upload(ctx context.Context, files *map[shared.FileID][]byte) (*UploadResult, error) {
 	var err error
-	uploadResult := shared.UploadResult{
+	uploadResult := UploadResult{
 		SuccessFiles: make([]shared.File, 0),
 		FailedFiles:  make([]shared.FailedFile, 0),
 	}
-
-	extractedFiles := e.SuccessFiles
-
-	for fileID, body := range extractedFiles {
+	log.Printf("Starting upload...")
+	for fileID, body := range *files {
 
 		fileReader := bytes.NewReader(body)
 
@@ -24,6 +30,7 @@ func (c *Conversion) Upload(ctx context.Context, e *ExtractionResult) (*shared.U
 		opts := minio.PutObjectOptions{
 			ContentType: "text",
 		}
+		log.Printf("Putting object %s...", fileID.ObjectKey)
 		_, err := c.MinioClient.Client.PutObject(
 			ctx,
 			c.MinioClient.Bucket,
@@ -32,18 +39,36 @@ func (c *Conversion) Upload(ctx context.Context, e *ExtractionResult) (*shared.U
 			int64(fileSize),
 			opts,
 		)
+
+		// could not upload file
 		if err != nil {
-			msg := "failed to text file to minio"
+			msg := "failed to upload text file to MinIO"
 			fFile := shared.FailedFile{
 
 				URL:    fileID.URL,
 				Report: msg,
 			}
 			uploadResult.FailedFiles = append(uploadResult.FailedFiles, fFile)
+			log.Printf("Upload failed")
+			continue
+		} // if
+		log.Printf("Upload successful")
 
+		log.Printf("Updating row...")
+		// could not update row of file
+		if err := c.Update(ctx, fileID); err != nil {
+			msg := fmt.Sprintf("unable to update row in documents: %s", fileID.ObjectKey)
+			fFile := shared.FailedFile{
+
+				URL:    fileID.URL,
+				Report: msg,
+			}
+			uploadResult.FailedFiles = append(uploadResult.FailedFiles, fFile)
+			log.Printf("Update failed")
+			continue
 		} // if
 
-		// call Update() here
+		// add successfully uploaded and updated file to our upload result
 		sFile := shared.File{
 			ObjectKey: fileID.ObjectKey,
 			URL:       fileID.URL,
@@ -53,5 +78,9 @@ func (c *Conversion) Upload(ctx context.Context, e *ExtractionResult) (*shared.U
 		uploadResult.SuccessFiles = append(uploadResult.SuccessFiles, sFile)
 	} // for
 
+	if len(*files) > 0 && len(uploadResult.SuccessFiles) == 0 {
+		log.Print("No files to upload")
+		return nil, errors.New("failed to upload any extracted files")
+	}
 	return &uploadResult, err
 }

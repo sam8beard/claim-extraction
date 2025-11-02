@@ -22,11 +22,12 @@ type ExtractionResult struct {
 }
 
 type FileJSON struct {
-	Body      string `json:"body,omitempty"`
-	Title     string `json:"title,omitempty"`
-	ObjectKey string `json:"objectKey,omitempty"`
-	URL       string `json:"url,omitempty"`
-	Err       string `json:"error,omitempty"`
+	Body        string `json:"body,omitempty"`
+	Title       string `json:"title,omitempty"`
+	ObjectKey   string `json:"objectKey,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Err         string `json:"error,omitempty"`
+	OriginalKey string `json:"originalKey, omitempty"`
 }
 
 type Locker struct {
@@ -116,9 +117,10 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 			} // if
 
 			fileToAdd = shared.FileID{
-				Title:     success.Title,
-				ObjectKey: success.ObjectKey,
-				URL:       success.URL,
+				Title:       success.Title,
+				ObjectKey:   success.ObjectKey,
+				OriginalKey: success.OriginalKey,
+				URL:         success.URL,
 			}
 			utf8body := string(success.Body)
 			decodedBody, err := base64.StdEncoding.DecodeString(utf8body)
@@ -213,11 +215,11 @@ func buildJSON(id shared.FileID, r io.ReadCloser) ([]byte, error) {
 
 	// encode data
 	jsonObject = FileJSON{
-		Body:      encodedBuf,
-		Title:     id.Title,
-		ObjectKey: id.ObjectKey,
-		URL:       id.URL,
-		//Err:       "",
+		Body:        encodedBuf,
+		Title:       id.Title,
+		ObjectKey:   id.ObjectKey,
+		URL:         id.URL,
+		OriginalKey: id.ObjectKey,
 	}
 	jsonData, err = json.Marshal(jsonObject)
 	if err != nil {

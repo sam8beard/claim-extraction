@@ -128,6 +128,51 @@ func TestDownload(t *testing.T) {
 	}
 } // TestDownload
 
+func TestExtract(t *testing.T) {
+	input := NewConversionInput()
+	con := NewConversion()
+
+	downloadResult, err := con.Download(ctx, input)
+
+	if err != nil {
+		panic(err)
+	}
+	eResult, err := con.Extract(ctx, downloadResult)
+	if err != nil {
+		t.Fatalf("Extraction failed")
+	}
+	t.Log(eResult.String())
+
+} // TestExtract
+
+func TestUpload(t *testing.T) {
+	input := NewConversionInput()
+	con := NewConversion()
+
+	t.Log("Starting download...")
+	downloadResult, err := con.Download(ctx, input)
+	if err != nil {
+		panic(err)
+	}
+	t.Log("Download successful")
+	t.Log("Starting extraction...")
+	eResult, err := con.Extract(ctx, downloadResult)
+	if err != nil {
+		t.Fatalf("Extraction failed")
+	}
+	t.Log(eResult.String())
+	t.Log("Extraction successful")
+	t.Log("Starting upload..")
+	upResult, err := con.Upload(ctx, &eResult.SuccessFiles)
+	if err != nil {
+		t.Log(err)
+		t.Fatalf("Upload failed")
+	} // if
+	t.Log(upResult.String())
+	t.Log("Upload successful")
+
+} // TestUpload
+
 func (r ExtractionResult) String() string {
 	sucF := r.SuccessFiles
 	failF := r.FailedFiles
@@ -153,19 +198,23 @@ func (r ExtractionResult) String() string {
 	return s
 } // String
 
-func TestExtract(t *testing.T) {
-	input := NewConversionInput()
-	con := NewConversion()
+func (r UploadResult) String() string {
+	sucF := r.SuccessFiles
+	failF := r.FailedFiles
+	var s string
+	s += "\nSUCCESS FILES: \n"
+	for _, file := range sucF {
+		title := file.FileName
+		objectKey := file.ObjectKey
+		url := file.URL
+		s += fmt.Sprintf("\nTitle: %s, ObjectKey: %s, URL: %s", title, objectKey, url)
+	} // for
 
-	downloadResult, err := con.Download(ctx, input)
-
-	if err != nil {
-		panic(err)
-	}
-	eResult, err := con.Extract(ctx, downloadResult)
-	if err != nil {
-		t.Fatalf("Extraction failed")
-	}
-	t.Log(eResult.String())
-
-} // TestExtract
+	s += "\nFAILED FILES: \n"
+	for _, file := range failF {
+		url := file.URL
+		report := file.Report
+		s += fmt.Sprintf("\nURL: %s, Report: %s", url, report)
+	} // for
+	return s
+} // String

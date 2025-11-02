@@ -54,7 +54,7 @@ def build_data(line):
 
         # get values
         # need to use loop to avoid omitted fields 
-        key_list = ['title', 'objectKey', 'body', 'url', 'error']
+        key_list = ['title', 'objectKey', 'body', 'url', 'error', 'originalKey']
         output = dict.fromkeys(key_list)
         for key, value in payload.items(): 
             # if the key is body or objectKey, we need to process them
