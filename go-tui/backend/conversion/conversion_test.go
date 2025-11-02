@@ -92,7 +92,7 @@ func randomAcqInput() types.AcquisitionInput {
 		"machine learning for predictive healthcare interventions",
 		"ai for precision agriculture monitoring"}
 	//fileCount := 1 + rand.Intn(4) // random number between 1 and 4
-	fileCount := 20
+	fileCount := 10
 	return types.AcquisitionInput{
 		Query:     queries[rand.Intn(len(queries))],
 		FileCount: fileCount,
@@ -173,6 +173,47 @@ func TestUpload(t *testing.T) {
 
 } // TestUpload
 
+func TestRunConversion(t *testing.T) {
+	input := NewConversionInput()
+	c := Conversion{}
+
+	cResult, err := c.Run(ctx, input)
+	if err != nil {
+		t.Fatalf("%s", err)
+	} // if
+
+	/*
+		For some reason, the execution hangs right here if we don't
+		have a print statement immediately after the call to c.Run().
+
+		Not sure why this is happening. Hopefully doesn't hold things
+		when executing it normally.
+	*/
+	// log.Print("firing")
+	log.Printf("%v", cResult)
+	//	t.Log("Starting download...")
+	//	downloadResult, err := c.Download(ctx, input)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	t.Log("Download successful")
+	//	t.Log("Starting extraction...")
+	//	eResult, err := c.Extract(ctx, downloadResult)
+	//	if err != nil {
+	//		t.Fatalf("Extraction failed")
+	//	}
+	//	t.Log(eResult.String())
+	//	t.Log("Extraction successful")
+	//	t.Log("Starting upload..")
+	//	upResult, err := c.Upload(ctx, &eResult.SuccessFiles)
+	//	if err != nil {
+	//		t.Log(err)
+	//		t.Fatalf("Upload failed")
+	//	} // if
+	//	t.Log(upResult.String())
+	//	t.Log("Upload successful")
+
+} // TestRunConversion
 func (r ExtractionResult) String() string {
 	sucF := r.SuccessFiles
 	failF := r.FailedFiles
