@@ -37,7 +37,7 @@ type Result struct {
 }
 
 // maximum pages allowed to visit
-const MaxPages = 15 // 50
+const MaxPages = 2 // 50
 
 // builds the base url
 func BuildBaseUrl(query string) string {

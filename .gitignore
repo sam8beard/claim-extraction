@@ -1,16 +1,22 @@
 # Python
-python/venv/
-python/__pycache__/
-python/**/*.pyc
-python/**/*.pyo
-python/*.egg-info/
-go-tui/backend/pipetesting/python/venv/*
-go-tui/backend/pipetesting/python/__pycache__/
-go-tui/backend/pipetesting/python/**/*.pyo
-go-tui/backend/pipetesting/python/*.egg-info/
-go-tui/backend/pipetesting/python/**/*.pyo
-go-tui/backend/conversion/python/venv/
-go-tui/backend/processing/python/venv/
+# python/venv/
+# python/__pycache__/
+# python/**/*.pyc
+# python/**/*.pyo
+# python/*.egg-info/
+# go-tui/backend/pipetesting/python/venv/*
+# go-tui/backend/pipetesting/python/__pycache__/
+# go-tui/backend/pipetesting/python/**/*.pyo
+# go-tui/backend/pipetesting/python/*.egg-info/
+# go-tui/backend/pipetesting/python/**/*.pyo
+# go-tui/backend/conversion/python/venv/
+# go-tui/backend/processing/python/venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.egg-info/
+
 
 # nvim
 *.vim
@@ -66,3 +72,4 @@ python/nlp/spancat_v1.0
 minio/minio_data
 
 go-tui/backend/acquisition/testing.log
+api-refactor/internal/workflows/conversion/python/venv

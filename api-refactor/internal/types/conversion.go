@@ -1,8 +1,6 @@
 package types
 
-import (
-	"tui/backend/types/shared"
-)
+import "github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 
 /*
 Acquisition types

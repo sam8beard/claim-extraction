@@ -1,0 +1,13 @@
+{
+  "labels":[
+    "SOURCE",
+    "CLAIM_VERB",
+    "CLAIM_CONTENTS",
+    "CLAIM_MOD"
+  ],
+  "spans_key":"sc",
+  "threshold":0.7,
+  "max_positive":64,
+  "negative_weight":null,
+  "allow_overlap":true
+}

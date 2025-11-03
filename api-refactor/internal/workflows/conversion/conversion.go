@@ -2,8 +2,12 @@ package conversion
 
 import (
 	"context"
-	"tui/backend/types"
-	"tui/backend/types/shared"
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 // represents a conversion instance
@@ -25,6 +29,53 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 	defer c.PGClient.Close()
 
 	/* Outline conversion process here */
+
+	log.Println("Beginning download...")
+	dResult, err := c.Download(ctx, input)
+	if err != nil {
+		log.Println("Error on download")
+
+		// this shouldnt be a problem
+		err = errors.New("could not download files")
+		return finalResult, err
+	} // if
+	log.Println("Download successful...")
+
+	log.Println("Beginning extraction...")
+	eResult, err := c.Extract(ctx, dResult)
+	if err != nil {
+		log.Println("Error on extraction")
+
+		err = errors.New("could not extract files")
+		return finalResult, err
+	} // if
+	log.Println("Extraction successful")
+
+	eFiles := eResult.SuccessFiles
+
+	log.Println("Beginning upload...")
+	upResult, err := c.Upload(ctx, &eFiles)
+	if err != nil {
+		log.Println("Error on upload")
+
+		err = errors.New("could not upload files")
+		return finalResult, err
+	} // if
+	log.Println("Upload successful")
+
+	var failedLog string
+	var successLog string
+
+	for _, fFile := range upResult.FailedFiles {
+		failedLog += fmt.Sprintf("\n%s\n", fFile.Report)
+	} // for
+	finalResult.Log = append(finalResult.Log, failedLog)
+
+	for _, sFile := range upResult.SuccessFiles {
+		successLog += fmt.Sprintf("\n%s: %s\n", sFile.ObjectKey, sFile.Status)
+		finalResult.ConvertedFiles = append(finalResult.ConvertedFiles, sFile)
+	} // for
+	finalResult.Log = append(finalResult.Log, successLog)
 
 	// What other files and functions do we need?
 	// use the keys from ConversionInput to download files from Minio

@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"tui/backend/types"
-	"tui/backend/types/shared"
-
 	"github.com/minio/minio-go/v7"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) (*shared.DownloadResult, error) {

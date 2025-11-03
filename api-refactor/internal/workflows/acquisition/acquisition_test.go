@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 	"testing"
-	"tui/backend/types"
+
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
 )
 
 var ctx = context.Background()

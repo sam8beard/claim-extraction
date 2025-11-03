@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"os"
 	"time"
-	"tui/backend/db"
-	"tui/backend/db/models"
-	"tui/backend/types/shared"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/db"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/db/models"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 type UploadResult struct {

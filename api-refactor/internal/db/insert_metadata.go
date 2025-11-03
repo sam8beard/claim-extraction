@@ -5,9 +5,9 @@ package db
 
 import (
 	"context"
-	"tui/backend/db/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/db/models"
 )
 
 func InsertDocumentMetadata(ctx context.Context, pool *pgxpool.Pool, doc *models.Document) error {

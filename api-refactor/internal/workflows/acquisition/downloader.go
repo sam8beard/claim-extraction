@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"tui/backend/types/shared"
+
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 type DownloadResults struct {

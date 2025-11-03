@@ -1,4 +1,4 @@
-module claimex-pl
+module github.com/sam8beard/claim-extraction/api-refactor
 
 go 1.25.3
 

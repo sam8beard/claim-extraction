@@ -7,8 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"tui/backend/types"
-	"tui/backend/types/shared"
+
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 // represents an acquisition instance
