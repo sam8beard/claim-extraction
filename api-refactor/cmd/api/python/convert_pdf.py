@@ -7,36 +7,115 @@ def main():
     Driver for the script
 
     '''
+    '''
+    New logic: 
 
-    for line in sys.stdin:
-            # print(json.dumps)
-        result = build_data(line)
-        '''
-        Will need to switch sys.stdout.write() 
-        with print(). For some reason, I couldn't get 
-        write() to work, maybe it has something to do with me 
-        making the output unbuffered? Make sure to confirm 
-        that print() will work for all edge cases, will have to 
-        seek solution for printing out to stderr. 
-        
-        NOTE: 
-        Use print() if sys.std isnt working 
-        '''
-        if isinstance(result, Exception): 
-            exec_type, exec_value, trace = sys.exc_info()
-            tb_msg = "".join(traceback.format_tb(trace))
-            exc_msg = f"{tb_msg}"
-            # exec_info = [exec_type.__name__, exec_value, tb_msg]
-            # exception_msg = "\n".join(exec_info)
-            exception_json = {"error": "firing"}
-            exception_json = json.dumps(exception_json)
-            # sys.stderr.write(exception_json + "\n")
-            # sys.stderr.flush()
-            print(exception_json, file=sys.stderr, flush=True)
+    read until newline to get metadata, then read until sentinel for body 
+    '''
+    BODY_DELIMITER = b"--END-BODY--\n" while True:
+        meta_line = sys.stdin.readline()
+        if not meta_line: 
+            break # EOF
+        # build metadata json
+        metadata = build_data(meta_line)
+
+        # process body chunk by chunk
+        chunks = []
+        while True: 
+            chunk = sys.stdin.buffer.read(4096) 
+            if not chunk: 
+                break # EOF
+            # append delimeter
+            if BODY_DELIMETER in chunk: 
+                idx = chunk.find(BODY_DELIMETER)
+                chunks.append(chunk[:idx])
+                break
+            chunks.append(chunk)
+        body_bytes = b"".join(chunks)
+        converted_bytes = convert_to_txt(b64.base64decode(body_bytes))
+
+        if isinstance(metadata, Exception) or isinstance(converted_bytes, Exception):
+        # write bytes to stderr
+            exception_json = {"error": "Unable to process file"}
+            print(json.dumps(exception_json), file=sys.stderr, flush=True)
         else:
-            # sys.stdout.write(result + "\n") 
-            # sys.stdout.flush()
-            print(result, file=sys.stdout, flush=True)
+        # write bytes to stdout
+        # write metadata
+            print(metadata, file=sys.stdout, flush=True)
+            # write body in chunks with delimeter at end
+            converted_bytes = b64.base64encode(converted_bytes)
+            reader = io.BytesIO(converted_bytes)
+            # write chunk by chunk and append write delimeter at end
+            while True: 
+                chunk = reader.read(4096) 
+                if not chunk: 
+                    break # EOF
+                sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.write(BODY_DELIMETER)
+            sys.stdout.buffer.flush()
+
+            ''' 
+
+            Test with this in extractor.go:
+
+            JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlIC9DYXRhbG9n
+            L1BhZ2VzIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8L1R5cGUg
+            L1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDEKPj4KZW5kb2JqCjMg
+            MCBvYmoKPDwvVHlwZSAvUGFnZS9NZWRpYUJveCBbMCAwIDYxMiA3
+            OTJdL0NvbnRlbnRzIDQgMCBSCi9SZXNvdXJjZXMgPDwvRm9udCA8
+            PC9GMSA1IDAgUj4+Pj4+Pj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVu
+            Z3RoIDQ5Pj4Kc3RyZWFtCkJUIC9GMSAxMiBUZgoKSGVsbG8sIFdv
+            cmxkIQplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZSAv
+            Rm9udC9TdWJ0eXBlIC9UeXBlMQpOYW1lIC9GMQpCYXNlRm9udCAv
+            SGVsdmV0aWNhPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAg
+            NjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYx
+            IDAwMDAwIG4gCjAwMDAwMDAxMjAgMDAwMDAgbiAKMDAwMDAwMDM0
+            MCAwMDAwMCBuIAp0cmFpbGVyCjw8L1NpemUgNi9Sb290IDEgMCBS
+            L0luZm8gNiAwIFI+PgpzdGFydHhyZWYKNDA0CiUlRU9G
+            '''
+
+    #    if isinstance(result, Exception) or isinstance(converted_bytes, Exception):
+    #        # write to stderr
+    #    else: 
+    #        # write to stdout 
+    #        print(metadata, file=sys.stdout, flush=True)
+    #        converted_chunks = []
+    #        while True: 
+    #            chunk = converted_bytes.read(4096)
+    #            if not chunk: 
+    #                break # EOF
+    #            if BODY_SENTINEL in chunk 
+    
+    # for line in sys.stdin:
+    #         # print(json.dumps)
+    #     
+    #     result = build_data(line)
+    #     '''
+    #     Will need to switch sys.stdout.write() 
+    #     with print(). For some reason, I couldn't get 
+    #     write() to work, maybe it has something to do with me 
+    #     making the output unbuffered? Make sure to confirm 
+    #     that print() will work for all edge cases, will have to 
+    #     seek solution for printing out to stderr. 
+    #     
+    #     NOTE: 
+    #     Use print() if sys.std isnt working 
+    #     '''
+    #     if isinstance(result, Exception): 
+    #         exec_type, exec_value, trace = sys.exc_info()
+    #         tb_msg = "".join(traceback.format_tb(trace))
+    #         exc_msg = f"{tb_msg}"
+    #         # exec_info = [exec_type.__name__, exec_value, tb_msg]
+    #         # exception_msg = "\n".join(exec_info)
+    #         exception_json = {"error": "firing"}
+    #         exception_json = json.dumps(exception_json)
+    #         # sys.stderr.write(exception_json + "\n")
+    #         # sys.stderr.flush()
+    #         print(exception_json, file=sys.stderr, flush=True)
+    #     else:
+    #         # sys.stdout.write(result + "\n") 
+    #         # sys.stdout.flush()
+    #         print(result, file=sys.stdout, flush=True)
        
 def build_data(line): 
     '''
