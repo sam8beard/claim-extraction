@@ -71,7 +71,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	pythonDir := filepath.Join(currentDir, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
-	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
+	scriptPath := filepath.Join(pythonDir, "nlp_processing.py")
 
 	cmd := exec.Command(pythonExec, "-u", scriptPath)
 	cmd.Dir = pythonDir

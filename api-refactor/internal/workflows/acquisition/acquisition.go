@@ -37,7 +37,7 @@ func (a *Acquisition) Run(ctx context.Context, input types.AcquisitionInput) (ty
 	if err != nil {
 		err := errors.New("could not visit url")
 		return result, err
-	}
+	} // if 
 	// log count of pages searched to result and result log
 	result.PagesSearched = scrapeResult.PageCount
 	pagesSearchedMsg := fmt.Sprintf("%d out of a maximum %d pages worth of results scraped", result.PagesSearched, MaxPages)
