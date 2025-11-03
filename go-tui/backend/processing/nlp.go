@@ -2,7 +2,6 @@ package processing
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -52,7 +51,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	pythonDir := filepath.Join(projectRoot, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
-	scriptPath := filepath.Join(pythonDir /*[replace this with root python process]*/)
+	scriptPath := filepath.Join(pythonDir, "nlp_processing.py")
 	cmd := exec.Command(pythonExec, "-u", scriptPath)
 	cmd.Dir = pythonDir
 
