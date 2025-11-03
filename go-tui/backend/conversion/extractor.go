@@ -27,7 +27,7 @@ type FileJSON struct {
 	ObjectKey   string `json:"objectKey,omitempty"`
 	URL         string `json:"url,omitempty"`
 	Err         string `json:"error,omitempty"`
-	OriginalKey string `json:"originalKey, omitempty"`
+	OriginalKey string `json:"originalKey,omitempty"`
 }
 
 type Locker struct {
