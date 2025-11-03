@@ -9,23 +9,28 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
 type PythonInput struct {
 	ObjectKey string `json:"objectKey"`
 	Content   string `json:"content"`
+	FileName  string `json:"fileName"`
 }
 
 type FileData struct {
 	ObjectKey  string      `json:"objectKey"`
+	FileName   string      `json:"fileName"`
 	ClaimScore float64     `json:"claimScore"`
 	ClaimSpans []ClaimSpan `json:"claimSpans"`
 }
 
 type ClaimSpan struct {
-	Text string `json:"text"`
-	Type string `json:"type"`
+	Text       string  `json:"text"`
+	Type       string  `json:"type"`
+	Sent       string  `json:"sent"`
+	Confidence float64 `json:"confidence"`
 }
 
 type NLPResult struct {
@@ -65,6 +70,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 
+	fmt.Println("Executing script...")
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -76,6 +82,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	readStdout := func() {
 		defer wg.Done()
 		defer stdout.Close()
+		fmt.Println("firing inside read")
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			var fd FileData
@@ -83,32 +90,44 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 				log.Printf("bad JSON from python: %v", err)
 				continue
 			} // if
+			result.FileData = append(result.FileData, fd)
 		} // for
 
 	} // readStdout
 
+	fmt.Println("Begin reading from stdout...")
 	// start routine to read from stdout
-	readStdout()
+	go readStdout()
 
 	writeStdin := func() {
+		fmt.Println("firing inside write")
 		defer wg.Done()
 		defer stdin.Close()
+		fmt.Println("firing inside write")
 		for file, content := range files {
+			// get file name from object key for json data
+			fileName := file.ObjectKey
+			fileName = strings.Replace(fileName, "processed/", "", 1)
 			input := PythonInput{
+				FileName:  fileName,
 				ObjectKey: file.ObjectKey,
-				Content:   string(content.Bytes()),
+				Content:   content.String(),
 			}
 			data, err := json.Marshal(input)
 			if err != nil {
 				log.Printf("marshal error: %v", err)
 			} // if
+			fmt.Printf("writing file %s...\n", fileName)
 			stdin.Write(data)
 			stdin.Write([]byte("\n"))
 		} // for
 	} // writeStdin
 
+	fmt.Println("Begin writing to stdout...")
 	// start routine to write to stdin
-	writeStdin()
-
+	go writeStdin()
+	// wait for routines to finish and script to finish executing
+	wg.Wait()
+	cmd.Wait()
 	return &result, err
 } // NLP

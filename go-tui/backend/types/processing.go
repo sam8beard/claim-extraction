@@ -10,5 +10,5 @@ type ProcessingInput struct {
 }
 
 type ProcessingResult struct {
-	ProcessedFiles map[shared.File]bytes.Buffer
+	ProcessedFiles map[shared.File]*bytes.Buffer
 }

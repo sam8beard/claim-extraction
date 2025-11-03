@@ -15,7 +15,7 @@ import (
 )
 
 type FetchResult struct {
-	SuccessFiles map[shared.File]bytes.Buffer
+	SuccessFiles map[shared.File]*bytes.Buffer
 }
 
 /*
@@ -23,7 +23,7 @@ Fetch text bodies of converted files
 */
 func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*FetchResult, error) {
 	fetchResult := FetchResult{
-		SuccessFiles: make(map[shared.File]bytes.Buffer, 0),
+		SuccessFiles: make(map[shared.File]*bytes.Buffer, 0),
 	}
 
 	extractedRows, err := db.GetAllExtractedKeys(ctx, p.PGClient)
@@ -60,7 +60,7 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 		newSFile := shared.File{
 			ObjectKey: key,
 		}
-		fetchResult.SuccessFiles[newSFile] = newBuff
+		fetchResult.SuccessFiles[newSFile] = &newBuff
 	} // for
 	return &fetchResult, err
 } // Fetch

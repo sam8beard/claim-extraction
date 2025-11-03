@@ -41,10 +41,11 @@ def compute_claim_score(spans):
     score = 1 - variance 
     return round(score, 3) 
 
-def run_spancat(object_key, raw_text, nlp_model): 
+def run_spancat(object_key, raw_text, file_name, nlp_model): 
     text = preprocess_text(raw_text)
     file_data = {
         "objectKey": object_key,
+        "fileName": file_name,
         "claimScore": 0.0,
         "claimSpans": []
     } 
@@ -68,6 +69,7 @@ def test():
     test_files = [
  {
         "objectKey": "file1.txt",
+        "fileName": "file1",
         "content": (
             "Dr. Smith claims that the vaccine is highly effective. "
             "However, recent studies suggest otherwise. "
@@ -133,7 +135,8 @@ def test_main(json_line):
         obj = json.loads(json_line)
         object_key = obj.get("objectKey", "")
         content = obj.get("content", "")
-        result = run_spancat(object_key, content, nlp_model)
+        file_name = obj.get("fileName", "") 
+        result = run_spancat(object_key, content, file_name, nlp_model)
         return result
 
      # handle stderr here 
@@ -152,11 +155,12 @@ def main():
             obj = json.loads(line)
             object_key = obj.get("objectKey", "")
             content = obj.get("content", "")
-            result = run_spancat(object_key, content, nlp_model)
-            print(json.dumps(result), flush=True)
+            file_name = obj.get("fileName", "") 
+            result = run_spancat(object_key, content, file_name, nlp_model)
+            print(json.dumps(result), file=sys.stdout, flush=True)
 
         # handle stderr here 
         except:
             print("error")
 if __name__ == "__main__":
-    test()
+    main()
