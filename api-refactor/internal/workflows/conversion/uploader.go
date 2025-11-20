@@ -60,8 +60,9 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 
 		log.Printf("Updating row...")
 		// could not update row of file
-		log.Fatalf("Original key, should be raw/.../.pdf: %s", fileID.OriginalKey)
+		log.Printf("Original key, should be raw/.../.pdf: %s", fileID.OriginalKey)
 		if err := c.Update(ctx, fileID); err != nil {
+			log.Println("conversion/uploader.go FIRING ON Update ERROR")
 			msg := fmt.Sprintf("unable to update row in documents: %s", fileID.ObjectKey)
 			fFile := shared.FailedFile{
 
@@ -87,5 +88,6 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 		log.Print("No files to upload")
 		return nil, errors.New("failed to upload any extracted files")
 	}
+	log.Println("conversion/uploader.go MAKING IT TO THE END OF FILE")
 	return &uploadResult, err
 }

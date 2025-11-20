@@ -63,7 +63,7 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 
 	upResult, err := c.Upload(ctx, eFiles)
 	for _, file := range upResult.SuccessFiles {
-		log.Fatalf("%s %s", file.FileName, file.ObjectKey)
+		log.Printf("%s %s", file.FileName, file.ObjectKey)
 	} // for
 	if err != nil {
 		log.Println("Error on upload")

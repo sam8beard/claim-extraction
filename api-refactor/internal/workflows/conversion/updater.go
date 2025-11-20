@@ -14,7 +14,7 @@ Updates text_extracted for rows with extracted text
 */
 func (c *Conversion) Update(ctx context.Context, f shared.FileID) error {
 	var err error
-	log.Fatalf("Original key in update: %s\n", f.OriginalKey)
+	log.Printf("Original key in update: %s\n", f.OriginalKey)
 	res, err := c.PGClient.Exec(
 		ctx,
 		`UPDATE documents SET text_extracted = true WHERE s3_key = $1`,

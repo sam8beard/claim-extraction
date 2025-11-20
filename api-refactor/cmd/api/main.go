@@ -32,7 +32,7 @@ func main() {
 
 	ctx := context.Background()
 	acqInput := types.AcquisitionInput{
-		Query:     "ai and the job market",
+		Query:     "short quick summary on ai and climate",
 		FileCount: 3,
 	}
 	fmt.Println("Starting acquisition")
