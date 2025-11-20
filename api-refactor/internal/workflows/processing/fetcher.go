@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
-	"path"
-	"strings"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/db"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"io"
+	"log"
+	"path"
+	"strings"
 )
 
 type FetchResult struct {
@@ -27,12 +27,14 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 		SuccessFiles: make(map[shared.File]*bytes.Buffer, 0),
 	}
 
+	// this is not getting any rows
 	extractedRows, err := db.GetAllExtractedKeys(ctx, p.PGClient)
+	// log.Printf("extracted rows: %v/n", extractedRows)
 	if err != nil {
 		err := errors.New("unable to query rows of extracted text")
 		return &fetchResult, err
 	} // if
-
+	//log.Printf("%v", extractedRows)
 	keys, err := FetchKeys(ctx, extractedRows)
 	if err != nil {
 		return &fetchResult, err
@@ -67,21 +69,22 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 } // Fetch
 
 func FetchKeys(ctx context.Context, rows pgx.Rows) ([]string, error) {
-	var keys []string
 	var err error
 
-	keys = make([]string, 0)
-
+	keys := make([]string, 0)
+	//log.Print("firing right before row scanning loop")
 	// get keys
 	for rows.Next() {
 		var key string
-		if err := rows.Scan(&key); err != nil {
+		if err = rows.Scan(&key); err != nil {
+			log.Println("firing in err block on scan")
 			continue
 		} // if
 		ext := path.Ext(key)
 		newKey := strings.Replace(key, ext, ".txt", 1)
 		newKey = strings.Replace(newKey, "raw", "processed", 1)
 		keys = append(keys, newKey)
+		//log.Printf("%v", keys)
 	} // for
 
 	if len(keys) == 0 {

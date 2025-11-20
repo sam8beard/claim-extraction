@@ -5,10 +5,13 @@
 **/*.pyc
 **/*.pyo
 **/*.egg-info/
-
+**/*.pyre/
 
 # nvim
 *.vim
+
+# debug notes
+.notes/
 
 # Vscode
 .vscode/

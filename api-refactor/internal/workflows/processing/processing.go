@@ -3,9 +3,11 @@ package processing
 import (
 	"context"
 	"fmt"
-
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"log"
+	//"runtime/debug"
+	"time"
 )
 
 type Processing struct {
@@ -17,20 +19,23 @@ Execute the processing workflow
 */
 func (p *Processing) Run(ctx context.Context, input *types.ProcessingInput) (*NLPResult, error) {
 	var err error
+	time.Sleep(time.Second * 3)
 	fetchResult, err := p.Fetch(ctx, input)
 	if err != nil {
+		log.Fatal("TESTING in processing/processing.go: remove this after issue resolved")
 		return nil, err
 	} // if
 
 	nlpResult, err := p.NLP(ctx, fetchResult)
 	if err != nil {
+		//log.Println(string(debug.Stack()))
 		return nil, err
 	} // if
 
 	return nlpResult, err
 } // Run
 
-func PrintNLPResult(nr *NLPResult) {
+func printNLP(nr NLPResult) {
 	fileData := nr.FileData
 	for _, data := range fileData {
 		fmt.Println("\nFile data ---------------------------")

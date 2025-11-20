@@ -1,19 +1,20 @@
-/* 
-	Function to query object keys of all properly processed files
+/*
+Function to query object keys of all properly processed files
 */
 package db
 
-import ( 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5"
+import (
 	"context"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func GetAllExtractedKeys(ctx context.Context, pool *pgxpool.Pool) (pgx.Rows, error) { 
+func GetAllExtractedKeys(ctx context.Context, pool *pgxpool.Pool) (pgx.Rows, error) {
 
 	return pool.Query(
-		ctx, 
+		ctx,
 		`SELECT s3_key FROM documents WHERE text_extracted=true ORDER BY uploaded_at;`,
 	)
 
-} // GetAllExtractedKeys 
+} // GetAllExtractedKeys
+

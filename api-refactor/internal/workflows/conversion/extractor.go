@@ -2,11 +2,11 @@ package conversion
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 	"io"
 	"log"
 	"os"
@@ -14,8 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
 type ExtractionResult struct {
@@ -75,11 +73,18 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 		order to execute the script so the libraries installed inside
 		the virtual environment can be recognized.
 	*/
-	projectRoot, _ := os.Getwd()
-	pythonDir := filepath.Join(projectRoot, "python")
+
+	// get dir of curr go file
+	_, goFile, _, _ := runtime.Caller(0)
+	goDir := filepath.Dir(goFile)
+	log.Printf("Go path: %s", goDir)
+	// build path to python venv and script
+	pythonDir := filepath.Join(goDir, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
+	log.Printf("Python script path: %s", scriptPath)
+
 	cmd := exec.Command(pythonExec, "-u", scriptPath)
 	cmd.Dir = pythonDir
 
@@ -88,20 +93,19 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 		fmt.Sprintf("VIRTUAL_ENV=%s", venvDir),
 		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
 	)
-	//	_, currentFile, _, _ := runtime.Caller(0) // file where this code is
-	//	currentDir := filepath.Dir(currentFile)
-	//	pythonDir := filepath.Join(currentDir, "python")
-	//	venvDir := filepath.Join(pythonDir, "venv")
-	//	pythonExec := filepath.Join(venvDir, "bin", "python3")
-	//	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
-	//
-	//	cmd := exec.Command(pythonExec, "-u", scriptPath)
-	//	cmd.Dir = pythonDir
-	//
-	//	cmd.Env = append(os.Environ(),
-	//		fmt.Sprintf("VIRTUAL_ENV=%s", venvDir),
-	//		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
-	//	)
+	//projectRoot, _ := os.Getwd()
+	//pythonDir := filepath.Join(projectRoot, "python")
+	//venvDir := filepath.Join(pythonDir, "venv")
+	//pythonExec := filepath.Join(venvDir, "bin", "python3")
+	//scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
+	//cmd := exec.Command(pythonExec, "-u", scriptPath)
+	//cmd.Dir = pythonDir
+
+	//// copy curr environment, but inject venv info
+	//cmd.Env = append(os.Environ(),
+	//	fmt.Sprintf("VIRTUAL_ENV=%s", venvDir),
+	//	fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
+	//)
 	// wait group for routines
 	var wg sync.WaitGroup
 	// pipes for processing
@@ -182,29 +186,21 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 
 	// write json objects
 	for id, r := range files {
-		// build metadata
-		jsonData, err := buildJSONMetadata(id)
+		jsonData, err := buildJSON(id, r)
+
 		// was not able to build json from file info, log and continue
 		if err != nil {
 			msg := fmt.Sprintf("could not build json from %s", id.Title)
 			l.logFailure(id, msg)
 			continue
 		} // if
-		// write metadata
+		log.Printf("Writing %s", id.ObjectKey)
 		if _, err := stdin.Write(jsonData); err != nil {
 			// we'll panic here because there is something wrong
 			// with json object if we can't write it
 			panic(err)
 		} // if
-		if _, err := stdin.Write([]byte("\n")); err != nil {
-			panic(err)
-		} // if
-
-		// wrap stdin writer in encoder
-		encoder := base64.NewEncoder(base64.StdEncoding, stdin)
-		// copy file contents to stdin using encoder
-		_, err = io.Copy(encoder, r)
-		if _, err = stdin.Write([]byte("--END-BODY--\n")); err != nil {
+		if _, err = stdin.Write([]byte("\n")); err != nil {
 			panic(err)
 		} // if
 	} // for
@@ -224,14 +220,23 @@ Returns a properly encoded json object ready for streaming
 
 On error, populates ExtractionResult.FailedFiles
 */
-func buildJSONMetadata(id shared.FileID) ([]byte, error) {
+func buildJSON(id shared.FileID, r io.ReadCloser) ([]byte, error) {
 
 	var err error
+	var buf []byte
 	var jsonData []byte
 	var jsonObject FileJSON
+	buf, err = io.ReadAll(r)
+	if err != nil {
+		return jsonData, err
+	} // if
+
+	// encode body in b64
+	encodedBuf := base64.StdEncoding.EncodeToString(buf)
 
 	// encode data
 	jsonObject = FileJSON{
+		Body:        encodedBuf,
 		Title:       id.Title,
 		ObjectKey:   id.ObjectKey,
 		URL:         id.URL,

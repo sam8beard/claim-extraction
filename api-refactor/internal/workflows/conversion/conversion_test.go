@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
+	//"math/rand"
 	"testing"
 
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
@@ -24,78 +24,78 @@ func NewConversion() *Conversion {
 
 // randomAcquisitionInput generates a random AcquisitionInput with a random query and file count <= 4.
 func randomAcqInput() types.AcquisitionInput {
-	queries := []string{
-		// New topics below
-		"ai for wildfire risk prediction",
-		"machine learning for autonomous warehouse robots",
-		"ai in real-time language translation",
-		"computer vision for underwater exploration",
-		"nlp for medical record summarization",
-		"ai-powered energy consumption optimization",
-		"deep learning for protein-ligand interaction prediction",
-		"ai in traffic flow optimization",
-		"machine learning for satellite image classification",
-		"ai for early disease diagnosis",
-		"computer vision for drone-based inspection",
-		"nlp for automated meeting transcription",
-		"ai-powered recommendation systems for education",
-		"deep learning for 3d object reconstruction",
-		"ai in predictive maintenance for aircraft",
-		"machine learning for customer churn prediction",
-		"ai for environmental monitoring with IoT sensors",
-		"computer vision for automated quality control",
-		"nlp for legal contract analysis",
-		"ai-powered robotic process automation",
-		"deep learning for natural disaster detection",
-		"ai in wildlife population monitoring",
-		"machine learning for financial fraud detection",
-		"ai for smart energy management in buildings",
-		"computer vision for traffic accident detection",
-		"nlp for opinion mining in product reviews",
-		"ai-powered personalized learning platforms",
-		"deep learning for video game character animation",
-		"ai in predictive inventory management",
-		"machine learning for disease risk assessment",
-		"ai for autonomous farming vehicles",
-		"computer vision for historical document digitization",
-		"nlp for scientific paper summarization",
-		"ai-powered smart home security",
-		"deep learning for autonomous robot navigation",
-		"ai in urban air quality prediction",
-		"machine learning for loan default prediction",
-		"ai for personalized diet recommendations",
-		"computer vision for warehouse item tracking",
-		"nlp for multilingual chat translation",
-		"ai-powered digital marketing optimization",
-		"deep learning for 3d medical imaging",
-		"ai in automated traffic signal control",
-		"machine learning for social media trend prediction",
-		"ai for smart wearable devices",
-		"computer vision for drone mapping",
-		"nlp for intelligent tutoring systems",
-		"ai-powered document summarization",
-		"deep learning for weather pattern analysis",
-		"ai in autonomous shipping logistics",
-		"machine learning for predictive maintenance in factories",
-		"ai for personalized content curation",
-		"computer vision for surgical tool tracking",
-		"nlp for mental health chatbots",
-		"ai-powered supply chain risk assessment",
-		"deep learning for facial expression recognition",
-		"ai in renewable energy load forecasting",
-		"machine learning for personalized investment advice",
-		"ai for automated vehicle inspection",
-		"computer vision for packaging defect detection",
-		"nlp for automated translation in real-time",
-		"ai-powered smart city monitoring systems",
-		"deep learning for gesture-controlled devices",
-		"ai in autonomous traffic management",
-		"machine learning for predictive healthcare interventions",
-		"ai for precision agriculture monitoring"}
+	//queries := []string{
+	//	// New topics below
+	//	"ai for wildfire risk prediction",
+	//	"machine learning for autonomous warehouse robots",
+	//	"ai in real-time language translation",
+	//	"computer vision for underwater exploration",
+	//	"nlp for medical record summarization",
+	//	"ai-powered energy consumption optimization",
+	//	"deep learning for protein-ligand interaction prediction",
+	//	"ai in traffic flow optimization",
+	//	"machine learning for satellite image classification",
+	//	"ai for early disease diagnosis",
+	//	"computer vision for drone-based inspection",
+	//	"nlp for automated meeting transcription",
+	//	"ai-powered recommendation systems for education",
+	//	"deep learning for 3d object reconstruction",
+	//	"ai in predictive maintenance for aircraft",
+	//	"machine learning for customer churn prediction",
+	//	"ai for environmental monitoring with IoT sensors",
+	//	"computer vision for automated quality control",
+	//	"nlp for legal contract analysis",
+	//	"ai-powered robotic process automation",
+	//	"deep learning for natural disaster detection",
+	//	"ai in wildlife population monitoring",
+	//	"machine learning for financial fraud detection",
+	//	"ai for smart energy management in buildings",
+	//	"computer vision for traffic accident detection",
+	//	"nlp for opinion mining in product reviews",
+	//	"ai-powered personalized learning platforms",
+	//	"deep learning for video game character animation",
+	//	"ai in predictive inventory management",
+	//	"machine learning for disease risk assessment",
+	//	"ai for autonomous farming vehicles",
+	//	"computer vision for historical document digitization",
+	//	"nlp for scientific paper summarization",
+	//	"ai-powered smart home security",
+	//	"deep learning for autonomous robot navigation",
+	//	"ai in urban air quality prediction",
+	//	"machine learning for loan default prediction",
+	//	"ai for personalized diet recommendations",
+	//	"computer vision for warehouse item tracking",
+	//	"nlp for multilingual chat translation",
+	//	"ai-powered digital marketing optimization",
+	//	"deep learning for 3d medical imaging",
+	//	"ai in automated traffic signal control",
+	//	"machine learning for social media trend prediction",
+	//	"ai for smart wearable devices",
+	//	"computer vision for drone mapping",
+	//	"nlp for intelligent tutoring systems",
+	//	"ai-powered document summarization",
+	//	"deep learning for weather pattern analysis",
+	//	"ai in autonomous shipping logistics",
+	//	"machine learning for predictive maintenance in factories",
+	//	"ai for personalized content curation",
+	//	"computer vision for surgical tool tracking",
+	//	"nlp for mental health chatbots",
+	//	"ai-powered supply chain risk assessment",
+	//	"deep learning for facial expression recognition",
+	//	"ai in renewable energy load forecasting",
+	//	"machine learning for personalized investment advice",
+	//	"ai for automated vehicle inspection",
+	//	"computer vision for packaging defect detection",
+	//	"nlp for automated translation in real-time",
+	//	"ai-powered smart city monitoring systems",
+	//	"deep learning for gesture-controlled devices",
+	//	"ai in autonomous traffic management",
+	//	"machine learning for predictive healthcare interventions",
+	//	"ai for precision agriculture monitoring"}
 	//fileCount := 1 + rand.Intn(4) // random number between 1 and 4
 	fileCount := 4
 	return types.AcquisitionInput{
-		Query:     queries[rand.Intn(len(queries))],
+		Query:     "is it time to call it quits on AI",
 		FileCount: fileCount,
 	}
 } // randomAcqInput
@@ -164,7 +164,7 @@ func TestUpload(t *testing.T) {
 	t.Log(eResult.String())
 	t.Log("Extraction successful")
 	t.Log("Starting upload..")
-	upResult, err := con.Upload(ctx, &eResult.SuccessFiles)
+	upResult, err := con.Upload(ctx, eResult.SuccessFiles)
 	if err != nil {
 		t.Log(err)
 		t.Fatalf("Upload failed")

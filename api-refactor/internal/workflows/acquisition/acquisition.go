@@ -25,19 +25,19 @@ func (a *Acquisition) Run(ctx context.Context, input types.AcquisitionInput) (ty
 		FailedFiles:  make([]shared.FailedFile, 0),
 		Log:          make([]string, 0),
 	}
-
-	// initialize clients
-	if err := a.InitializeClients(); err != nil {
-		return result, err
-	} // if
-	defer a.PGClient.Close()
-
+	/*
+		// initialize clients
+		if err := a.InitializeClients(); err != nil {
+			return result, err
+		} // if
+		defer a.PGClient.Close()
+	*/
 	// 1) scrape urls
 	scrapeResult, err := Scrape(ctx, input.Query, input.FileCount)
 	if err != nil {
 		err := errors.New("could not visit url")
 		return result, err
-	} // if 
+	} // if
 	// log count of pages searched to result and result log
 	result.PagesSearched = scrapeResult.PageCount
 	pagesSearchedMsg := fmt.Sprintf("%d out of a maximum %d pages worth of results scraped", result.PagesSearched, MaxPages)

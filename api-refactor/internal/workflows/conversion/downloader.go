@@ -28,12 +28,12 @@ func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) 
 		url := acquiredFile.URL
 		// dont think we need status here?
 		fileID := shared.FileID{
-			Title:     title,
-			URL:       url,
-			ObjectKey: objectKey,
+			Title:       title,
+			URL:         url,
+			ObjectKey:   objectKey,
+			OriginalKey: objectKey,
 		}
 		// attempt to download file
-		ctx := context.Background()
 		opts := minio.GetObjectOptions{}
 		object, err := c.MinioClient.Client.GetObject(
 			ctx,
