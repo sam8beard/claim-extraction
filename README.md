@@ -38,8 +38,8 @@ A command line tool for extracting structured information from argument-rich/cla
  #### [**MinIO**][minio] for object storage
 
 ----
-# IN PROGRESS
-
+## Getting Started
+> Project in progress 
 
 [spacy]:https://github.com/explosion/spaCy
 [searxng]: https://github.com/searxng/searxng
