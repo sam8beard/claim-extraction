@@ -2,14 +2,12 @@
 A command line tool for extracting structured information from argument-rich/claim-rich PDF documents
 
 ## How It Works
----
 *	Search for any topic via [SearXNG][searxng] 
 *	Specify a number of files to aggregate
 *	Files are processed using a Span Categorizer [(SpanCat)][spancat] model trained on ~1500 silver labels to detect and extract claim spans
 *	View analysis for each document returned in JSON format 
- 
+--- 
 ## Pipeline Results
----
 > ### **Spans**
 * **Sources** 
     * *Who* made the claim
@@ -31,12 +29,11 @@ A command line tool for extracting structured information from argument-rich/cla
     * How *confident* the model was at predicting a given span
 
 > #### NOTE: File sizes of up to ~200MB are recommended for optimal performance
-
+---
 ## Powered By
  #### [**spaCy**][spacy] for NLP 
  #### [**SearXNG**][searxng] for search
  #### [**MinIO**][minio] for object storage
-
 ----
 ## Getting Started
 > Project in progress 
