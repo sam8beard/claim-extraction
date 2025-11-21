@@ -8,7 +8,9 @@ import (
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/workflows/conversion"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/workflows/processing"
 	"log"
+	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 )
 
@@ -31,9 +33,15 @@ func main() {
 	} // if
 
 	ctx := context.Background()
+
+	// cli args for testing
+	q := string(os.Args[1])
+	fc, err := strconv.Atoi(os.Args[2])
+	log.Printf("Query: %s --- File Count: %d\n", q, fc)
+
 	acqInput := types.AcquisitionInput{
-		Query:     "short quick summary on ai and climate",
-		FileCount: 3,
+		Query:     q,
+		FileCount: fc,
 	}
 	fmt.Println("Starting acquisition")
 	acqResult, err := a.Run(ctx, acqInput)
@@ -67,9 +75,13 @@ func main() {
 		log.Println(string(debug.Stack()))
 		log.Printf("error on p.Run: %v\n", err)
 	} // if
-	printNLP(*procResult)
-	fmt.Printf("%v", procResult.FileData)
-
+	//printNLP(*procResult)
+	//fmt.Printf("%v", procResult.FileData)
+	fmt.Println("------------------------- [SUCCESS] -------------------------")
+	fmt.Println("\t\tpipeline executed successfully\n\n")
+	fmt.Println("-------------------------- [INFO] ---------------------------")
+	fmt.Printf("\t\t\t%d files processed\n", len(procResult.FileData))
+	fmt.Printf("\t\t\t%d files requested\n", fc)
 } // main
 
 func printNLP(nr processing.NLPResult) {

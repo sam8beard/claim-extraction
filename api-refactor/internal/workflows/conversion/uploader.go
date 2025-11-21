@@ -88,6 +88,5 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 		log.Print("No files to upload")
 		return nil, errors.New("failed to upload any extracted files")
 	}
-	log.Println("conversion/uploader.go MAKING IT TO THE END OF FILE")
 	return &uploadResult, err
 }

@@ -52,6 +52,12 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 
 	// no files were converted
 	if len(eResult.SuccessFiles) == 0 {
+		if len(eResult.FailedFiles) != 0 {
+			log.Println("Only failed files returned from Extract")
+			for file, msg := range eResult.FailedFiles {
+				log.Printf("%s -- %s\n", file.ObjectKey, msg)
+			} // for
+		} // if
 		log.Fatal("No successful files were returned from Extract")
 	} // if
 

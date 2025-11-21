@@ -29,43 +29,61 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 
 	// this is not getting any rows
 	extractedRows, err := db.GetAllExtractedKeys(ctx, p.PGClient)
-	// log.Printf("extracted rows: %v/n", extractedRows)
 	if err != nil {
+		log.Println("error in GetAllExtractedKeys block")
 		err := errors.New("unable to query rows of extracted text")
-		return &fetchResult, err
+		return nil, err
 	} // if
-	//log.Printf("%v", extractedRows)
 	keys, err := FetchKeys(ctx, extractedRows)
+	log.Printf("all keys retrieved by FetchKeys: %v", keys)
+
 	if err != nil {
-		return &fetchResult, err
+		log.Println("error in fetch keys block")
+		return nil, err
 	} // if
 	bucket := p.MinioClient.Bucket
 	opts := minio.GetObjectOptions{}
-	// download extracted files from processed/
+	// download extracted files from processed
 	for _, key := range keys {
+		log.Printf("attempting to get %s\n", key)
 		object, err := p.MinioClient.Client.GetObject(
 			ctx,
 			bucket,
 			key,
 			opts,
 		)
+		/*
+			Apparently, err is not populated if the retrieval process executes, but the key is determined to not exist in bucket. So this err check only covers the case that the call to GetObject was not successful.
+		*/
+		// could not get object from MinIO
 		if err != nil {
 			continue
 		} // if
 
-		// use buffer to optimize streaming
+		// TESTING
+		info, _ := object.Stat()
+		obK := info.Key
+		// The specified key does not exist
+		if obK == "" {
+			log.Printf("warning: no key found in bucket for %s\n", key)
+			log.Printf("check bucket to see if key exists\n")
+			continue
+		} // if
+		log.Printf("key found in bucket: %s\n", obK)
+
+		// buf for object
 		var newBuff bytes.Buffer
 		_, err = io.Copy(&newBuff, object)
 		if err != nil {
-			err = errors.New("unable to copy object reader")
-			return &fetchResult, err
+			log.Printf("unable to copy contents: %s\n", key)
+			continue
 		} // if
 		newSFile := shared.File{
 			ObjectKey: key,
 		}
 		fetchResult.SuccessFiles[newSFile] = &newBuff
 	} // for
-	return &fetchResult, err
+	return &fetchResult, nil
 } // Fetch
 
 func FetchKeys(ctx context.Context, rows pgx.Rows) ([]string, error) {

@@ -22,7 +22,8 @@ func (p *Processing) Run(ctx context.Context, input *types.ProcessingInput) (*NL
 	time.Sleep(time.Second * 3)
 	fetchResult, err := p.Fetch(ctx, input)
 	if err != nil {
-		log.Fatal("TESTING in processing/processing.go: remove this after issue resolved")
+		log.Println("TESTING in processing/processing.go: remove this after issue resolved")
+		log.Fatalf("fetch error: %v", err)
 		return nil, err
 	} // if
 

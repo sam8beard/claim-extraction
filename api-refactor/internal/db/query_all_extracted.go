@@ -13,8 +13,7 @@ func GetAllExtractedKeys(ctx context.Context, pool *pgxpool.Pool) (pgx.Rows, err
 
 	return pool.Query(
 		ctx,
-		`SELECT s3_key FROM documents WHERE text_extracted=true ORDER BY uploaded_at;`,
+		`SELECT s3_key FROM documents WHERE text_extracted=true;`,
 	)
 
 } // GetAllExtractedKeys
-
