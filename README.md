@@ -4,7 +4,7 @@ A command line tool for extracting structured information from argument-rich/cla
 ## How It Works
 *	Search for any topic via [SearXNG][searxng] 
 *	Specify a number of files to aggregate
-*	Files are processed using a Span Categorizer [(SpanCat)][spancat] model trained on ~1500 silver labels to detect and extract claim spans
+*	Files are processed using a [spaCy][spacy] Span Categorizer [(SpanCat)][spancat] model trained on ~1500 silver labels to detect and extract claim spans
 *	View analysis for each document returned in JSON format 
 --- 
 ## Pipeline Results
