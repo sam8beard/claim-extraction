@@ -70,7 +70,18 @@ def main():
             out_meta = dict(meta)
             # make sure body field exists
             out_meta['body'] = ""
-            out_json = json.dumps(out_meta)
+            # add new object key to payload
+            old_key = out_meta['originalKey']
+            try:
+                new_key = get_new_object_key(old_key)
+                out_meta['objectKey'] = new_key
+                out_json = json.dumps(out_meta)
+            except Exception as e:
+                err_obj = {
+                    "error": f"could not build new object key: {str(e)}"
+                }
+                print(json.dumps(err_obj), file=sys.stderr, flush=True)
+                continue
         except Exception as e:
             err_obj = {"error": f"metadata build error: {str(e)}"}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
@@ -238,7 +249,7 @@ def get_new_object_key(raw_name):
         new_name = "processed/" + root + ".txt"
 
     except Exception as e:
-        return e
+        raise e
 
     return new_name
 
