@@ -1,15 +1,36 @@
-# ClaimEX
-A CLI data aggregation tool for extracting structured information from argument-rich/claim-rich PDF documents
+# claimEx
+A command line tool for extracting structured information from argument-rich/claim-rich PDF documents
 
-Features
+## How It Works
 ---
-*	Search for a topic via [SearXNG][searxng] 
+*	Search for any topic via [SearXNG][searxng] 
 *	Specify a number of files to aggregate
-*	Process files using a pre-trained Span Categorizer [(SpanCat)][spancat] model to detect and extract claim spans with the click of a button
-*	View analysis for each document, including:
-      * Sources
-      * Extracted spans
-      * Claim density score (indicating how claim-heavy the document is)
+*	Files are processed using a Span Categorizer [(SpanCat)][spancat] model trained on ~1500 silver labels to detect and extract claim spans
+*	View analysis for each document returned in JSON format 
+ 
+## Pipeline Results
+---
+> ### **Spans**
+* **Sources** 
+    * *Who* made the claim
+* **Claim Verbs**
+    * The *verb* used to make the claim
+* **Claim Modifiers** 
+    * *Modifier(s)* that indicate the strength/degree with which the claim was made
+* **Claim Contents** 
+    * The *claim* being made
+
+> ### **Other Info**
+* **Origin Document** 
+    * The **document** spans were extracted from
+* **Origin Sentence**
+    * The *sentence* that contains a given span
+* **Claim Density Score**
+    * A value representing how *claim-heavy* a given document is
+* **Confidence Score**
+    * How *confident* the model was at predicting a given span
+
+> #### NOTE: File sizes of up to ~200MB are recommended for optimal performance
 
 ## Powered By
  #### [**spaCy**][spacy] for NLP 
@@ -17,7 +38,7 @@ Features
  #### [**MinIO**][minio] for object storage
 
 ----
-# IN PROGRESS...
+# IN PROGRESS
 
 
 [spacy]:https://github.com/explosion/spaCy
