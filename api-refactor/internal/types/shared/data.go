@@ -8,10 +8,11 @@ import (
 )
 
 type File struct {
-	FileName  string // name of file
-	ObjectKey string // object key of file
-	URL       string // url of file
-	Status    string // status of file (downloaded, uploaded, failed)
+	FileName    string // name of file
+	ObjectKey   string // object key of file
+	OriginalKey string // original object key of file
+	URL         string // url of file
+	Status      string // status of file (downloaded, uploaded, failed)
 }
 
 type FailedFile struct {

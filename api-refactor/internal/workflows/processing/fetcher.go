@@ -27,13 +27,14 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 		SuccessFiles: make(map[shared.File]*bytes.Buffer, 0),
 	}
 
-	// this is not getting any rows
-	extractedRows, err := db.GetAllExtractedKeys(ctx, p.PGClient)
+	// get rows of files that have been converted
+	extractedRows, err := db.GetAllExtractedKeys(ctx, p.PGClient, input)
 	if err != nil {
 		log.Println("error in GetAllExtractedKeys block")
 		err := errors.New("unable to query rows of extracted text")
 		return nil, err
 	} // if
+
 	keys, err := FetchKeys(ctx, extractedRows)
 	log.Printf("all keys retrieved by FetchKeys: %v", keys)
 
@@ -98,6 +99,7 @@ func FetchKeys(ctx context.Context, rows pgx.Rows) ([]string, error) {
 			log.Println("firing in err block on scan")
 			continue
 		} // if
+
 		ext := path.Ext(key)
 		newKey := strings.Replace(key, ext, ".txt", 1)
 		newKey = strings.Replace(newKey, "raw", "processed", 1)

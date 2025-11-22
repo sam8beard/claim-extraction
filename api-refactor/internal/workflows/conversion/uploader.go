@@ -76,10 +76,11 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 
 		// add successfully uploaded and updated file to our upload result
 		sFile := shared.File{
-			ObjectKey: fileID.ObjectKey,
-			URL:       fileID.URL,
-			FileName:  fileID.Title,
-			Status:    "processed",
+			ObjectKey:   fileID.ObjectKey,
+			OriginalKey: fileID.OriginalKey,
+			URL:         fileID.URL,
+			FileName:    fileID.Title,
+			Status:      "processed",
 		}
 		uploadResult.SuccessFiles = append(uploadResult.SuccessFiles, sFile)
 	} // for
