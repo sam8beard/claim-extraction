@@ -6,7 +6,7 @@ import json
 import base64
 import traceback
 
-BODY_DELIMETER = b"--END-BODY--\n"
+BODY_DELIMETER = b'--END-BODY--\n'
 BUF_SIZE = 4096
 
 
@@ -26,12 +26,14 @@ def main():
             meta = json.loads(meta_line)
         except Exception as e:
             err_obj = {
-                "error": f"invalid json metadata: {str(e)}"
+                "error": f"invalid json metadata: {str(e)}",
+                "originalKey": meta['objectKey']
             }
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
             continue
         # read b64 body until sentinel
         try:
+            leftover = b''
             chunks = []
             while True:
                 chunk = sys.stdin.buffer.read(BUF_SIZE)
@@ -39,21 +41,106 @@ def main():
                     # EOF reached unexpectedly
                     break
                 # get position of sentinel
-                idx = chunk.find(BODY_DELIMETER)
+                combined = leftover + chunk
+                idx = combined.find(BODY_DELIMETER)
                 # sentinel is found
                 if idx >= 0:
-                    # read up until position of sentinel and exit read loop
-                    chunks.append(chunk[:idx])
+                    # read up until position of sentinel
+                    chunks.append(combined[:idx])
+                    # consume the rest of the sentinel
+                    leftover = combined[idx+len(BODY_DELIMETER):]
                     break
-                # otherwise, add full chunk
-                chunks.append(chunk)
+
+                # say the delimeter is of length N
+
+                # if the ENTIRE sentinel is not found,
+                # we still need to keep the last N - 1
+                # bytes of the chunk
+
+                # why N - 1 bytes?
+
+                # because this is the max
+                # amount of bytes of the delimeter that could be
+                # read without actually detecting the entire
+                # delimeter
+
+                # consider:
+                    # sometexthere--END-BODY-- -> N bytes long -> detected
+                    # sometexthere--END-BODY-  -> N - 1 bytes long -> not detected
+
+                    # we save "--END-BODY-"
+
+                    # we prepend on to the next chunk read which contains
+                    # the remaining bytes of the delimeter
+
+                    # for example:
+                    #   "--END-BODY-" + "-[json meta data]nextfilebodyhere..."
+                    #   new chunk = --END-BODY--[json meta data]nextfilebodyhere..."
+                    #
+                    #   now when we check this chunk, a detection is triggered
+                    #
+                    #   we then read up to the start of the sentinel
+                    #   and append it to our chunks
+                    #   (which in this case, is nothing. because the sentinel
+                    #    is detected to have started at the first character,
+                    #    idx would = 0, and the call to combined[:idx] would return
+                    #    and empty list. so nothing gets appended to our total chunks."
+
+                    # in this case, that remaining dash is what we need to trigger a
+                    # detection and move forward with the body processing.
+                else:
+                    # keep the remaining bytes for overlap
+                    keep = combined[-(len(BODY_DELIMETER)-1):]
+                    chunks.append(combined[:-len(keep)])
+                    leftover = keep
             # get b64 string
-            body_b64 = b"".join(chunks)
+            body_b64 = b''.join(chunks)
             # decode b64 to bytes
             pdf_bytes = base64.b64decode(body_b64)
         except Exception as e:
-            err_obj = {"error": f"read/decode body error: {str(e)}"}
+            err_obj = {
+                "error": f"read/decode body error: {str(e)}",
+                "originalKey": meta['objectKey']
+            }
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
+
+            # do we also need to find a way to read the rest
+            # of stdin after we throw an error in this block????
+
+            # possible issues:
+
+            # characters not in b64 alphabet are being passed in
+            # this could cause decode to throw an error
+
+            # properly padded base64 strings have a length that is
+            # a multiple of four. so we can check the lengh is valid,
+            # and if not, add padding ourselves
+
+            # either way, our base64 string is probably corrupted in some way
+
+            # we know that if this exception happens,
+            # it happens because of a call to b64decode
+            # which means, either an EOF was hit or the delimeter was found
+
+            # but since the last chunk read is only up until the start
+            # of the delimeter, that means the rest of the delimeter would
+            # possibly be left in stdin.
+
+            # without assuming any flushing is happening on the
+            # go side of things, ( which im pretty sure it isnt,
+            # you can't flush stdin ) we need to read the rest of
+            # the delimeter and discard it so the pipe is cleared
+            # for the next file
+
+            # could be possible the delimeter is being split across two chunks,
+            # but this is probably not the reason error is being thrown everytime
+
+            # this should take care of getting rid of the delimeter
+            while True:
+                chunk = sys.stdin.buffer.read(BUF_SIZE)
+                idx = chunk.find(BODY_DELIMETER)
+                if idx >= 0:
+                    break
             continue
         # convert pdf bytes to text
         try:
@@ -102,79 +189,6 @@ def main():
             err_obj = {"error": f"write output error: {str(e)}"}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
             continue
-#
-#    for line in sys.stdin:
-#        # print(json.dumps)
-#        result = build_data(line)
-#        '''
-#        Will need to switch sys.stdout.write()
-#        with print(). For some reason, I couldn't get
-#        write() to work, maybe it has something to do with me
-#        making the output unbuffered? Make sure to confirm
-#        that print() will work for all edge cases, will have to
-#        seek solution for printing out to stderr.
-#        NOTE:
-#        Use print() if sys.std isnt working
-#        '''
-#        if isinstance(result, Exception):
-#            exec_type, exec_value, trace = sys.exc_info()
-#            tb_msg = "".join(traceback.format_tb(trace))
-#            exc_msg = f"{tb_msg}"
-#            # exec_info = [exec_type.__name__, exec_value, tb_msg]
-#            # exception_msg = "\n".join(exec_info)
-#            exception_json = {"error": "firing"}
-#            exception_json = json.dumps(exception_json)
-#            # sys.stderr.write(exception_json + "\n")
-#            # sys.stderr.flush()
-#            print(exception_json, file=sys.stderr, flush=True)
-#        else:
-#            # sys.stdout.write(result + "\n")
-#            # sys.stdout.flush()
-#            print(result, file=sys.stdout, flush=True)
-
-
-# def build_data(line):
-#    '''
-#    Build data to stream
-#
-#    Argument:
-#        line: a line from stdin
-#
-#    Returns:
-#        an encoded json object
-#
-#    '''
-#    try:
-#        payload = json.loads(line)
-#
-#        # get values
-#        # need to use loop to avoid omitted fields
-#        key_list = ['title', 'objectKey', 'body',
-#                    'url', 'error', 'originalKey']
-#        output = dict.fromkeys(key_list)
-#        for key, value in payload.items():
-#            # if the key is body or objectKey, we need to process them
-#            # otherwise, keep same value
-#            if key == "body":
-#                decoded_body = base64.b64decode(value)
-#                processed_body = convert_to_txt(decoded_body)
-#                # rencode to b64 and then into utf-8
-#                rencoded_body = base64.b64encode(
-#                    processed_body).decode('utf-8')
-#                output[key] = rencoded_body
-#            elif key == "objectKey":
-#                new_key = get_new_object_key(value)
-#                output[key] = new_key
-#                # we know there will initially be no errors coming in
-#            elif key == "error":
-#                output[key] = "none"
-#            else:
-#                output[key] = value
-#        # return json object
-#        output = json.dumps(output)
-#        return output
-#    except Exception as e:
-#        return e
 
 
 def convert_to_txt(body):

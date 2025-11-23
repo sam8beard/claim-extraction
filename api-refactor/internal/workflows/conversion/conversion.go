@@ -15,7 +15,7 @@ type Conversion struct {
 	shared.Workflow
 }
 
-func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (types.ConversionResult, error) {
+func (c *Conversion) Run(ctx context.Context, input *types.ConversionInput) (*types.ConversionResult, error) {
 	var err error
 	finalResult := types.ConversionResult{
 		ConvertedFiles: make([]shared.File, 0),
@@ -29,7 +29,7 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 		log.Println("Error on download")
 		// this shouldnt be a problem
 		err = errors.New("could not download files")
-		return finalResult, err
+		return nil, err
 	} // if
 	log.Println("Download successful...")
 	//log.Printf("Result of download: %v\n", dResult.SuccessFiles)
@@ -38,7 +38,7 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 			log.Printf("READER DOES NOT EXIST FOR %s\n", key.OriginalKey)
 			continue
 		} // if
-		log.Printf("\nOriginal Key: %s\nValue: %v\n\n", key.OriginalKey, value)
+		//log.Printf("\nOriginal Key: %s\nValue: %v\n\n", key.OriginalKey, value)
 	} // for
 	log.Println("Beginning extraction...")
 	//	log.Fatalf("num of downloaded files: %d", len(dResult.SuccessFiles))
@@ -47,7 +47,7 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 		log.Println("Error on extraction")
 		log.Fatal("firing on extraction error")
 		err = errors.New("could not extract files")
-		return finalResult, err
+		return nil, err
 	} // if
 
 	// no files were converted
@@ -75,10 +75,9 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 		log.Println("Error on upload")
 
 		err = errors.New("could not upload files")
-		return finalResult, err
+		return nil, err
 	} // if
 	log.Println("Upload successful")
-	log.Println("firing after conversion upload")
 	var failedLog string
 	var successLog string
 
@@ -94,5 +93,5 @@ func (c *Conversion) Run(ctx context.Context, input types.ConversionInput) (type
 	finalResult.Log = append(finalResult.Log, successLog)
 
 	// return final conversion result
-	return finalResult, err
+	return &finalResult, err
 } // Run

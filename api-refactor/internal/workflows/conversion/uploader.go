@@ -17,7 +17,6 @@ type UploadResult struct {
 }
 
 func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte) (*UploadResult, error) {
-	log.Println("FIRING IN conversion/upload.go")
 	var err error
 	uploadResult := UploadResult{
 		SuccessFiles: make([]shared.File, 0),
@@ -26,7 +25,6 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 	log.Printf("Starting upload...")
 	log.Printf("Length of files map: %d", len(files))
 	for fileID, body := range files {
-		log.Println("FIRING INSIDE UPLOAD LOOP")
 		log.Printf("file id original key: %s", fileID.OriginalKey)
 		fileReader := bytes.NewReader(body)
 
@@ -73,7 +71,7 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 			log.Printf("Update failed")
 			continue
 		} // if
-
+		log.Printf("Row updated for %s", fileID.OriginalKey)
 		// add successfully uploaded and updated file to our upload result
 		sFile := shared.File{
 			ObjectKey:   fileID.ObjectKey,
@@ -89,5 +87,7 @@ func (c *Conversion) Upload(ctx context.Context, files map[shared.FileID][]byte)
 		log.Print("No files to upload")
 		return nil, errors.New("failed to upload any extracted files")
 	}
+
+	log.Printf("%d total rows updated after conversion upload", len(uploadResult.SuccessFiles))
 	return &uploadResult, err
 }

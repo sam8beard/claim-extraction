@@ -25,7 +25,6 @@ func (c *Conversion) Update(ctx context.Context, f shared.FileID) error {
 	} // if
 
 	count := res.RowsAffected()
-	log.Printf("Rows updated: %d for key: %s", count, f.OriginalKey)
 	if count == 0 {
 		return fmt.Errorf("no rows updated for key: %s", f.OriginalKey)
 	}

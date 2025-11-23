@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"log"
 )
 
 // represents an acquisition instance
@@ -108,6 +108,6 @@ func (a *Acquisition) Run(ctx context.Context, input types.AcquisitionInput) (ty
 	result.SuccessFiles = append(result.SuccessFiles, sfiles...)
 	result.FailedFiles = append(result.FailedFiles, ffiles...)
 
-	// 6) return AcquisitionResult
+	log.Printf("acquired files: %v", sfiles)
 	return result, err
 } // Run

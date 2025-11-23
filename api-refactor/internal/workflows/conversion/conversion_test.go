@@ -122,7 +122,7 @@ func TestDownload(t *testing.T) {
 	input := NewConversionInput()
 	con := NewConversion()
 
-	_, err := con.Download(ctx, input)
+	_, err := con.Download(ctx, &input)
 	if err != nil {
 
 		panic(err)
@@ -133,7 +133,7 @@ func TestExtract(t *testing.T) {
 	input := NewConversionInput()
 	con := NewConversion()
 
-	downloadResult, err := con.Download(ctx, input)
+	downloadResult, err := con.Download(ctx, &input)
 
 	if err != nil {
 		panic(err)
@@ -151,7 +151,7 @@ func TestUpload(t *testing.T) {
 	con := NewConversion()
 
 	t.Log("Starting download...")
-	downloadResult, err := con.Download(ctx, input)
+	downloadResult, err := con.Download(ctx, &input)
 	if err != nil {
 		panic(err)
 	}
@@ -178,7 +178,7 @@ func TestRunConversion(t *testing.T) {
 	input := NewConversionInput()
 	c := Conversion{}
 
-	cResult, err := c.Run(ctx, input)
+	cResult, err := c.Run(ctx, &input)
 	if err != nil {
 		t.Fatalf("%s", err)
 	} // if

@@ -73,13 +73,11 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	// get dir of curr go file
 	_, goFile, _, _ := runtime.Caller(0)
 	goDir := filepath.Dir(goFile)
-	log.Printf("Go path: %s", goDir)
 	// build path to python venv and script
 	pythonDir := filepath.Join(goDir, "python")
 	venvDir := filepath.Join(pythonDir, "venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
-	log.Printf("Python script path: %s", scriptPath)
 
 	cmd := exec.Command(pythonExec, "-u", scriptPath)
 	cmd.Dir = pythonDir
@@ -131,7 +129,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 
 			var meta FileJSON
 			if err := json.Unmarshal([]byte(metaLine), &meta); err != nil {
-				log.Printf("invalid metadata JSON from python %v -- raw: %s", err, metaLine)
+				log.Printf("invalid metadata JSON from python: %v", err)
 				continue
 			} // if
 
@@ -180,32 +178,6 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 			l.logSuccess(fileToAdd, decoded)
 		} // for
 
-		//	// Reading converted files line by line
-		//	scanner := bufio.NewScanner(stdout)
-		//	for scanner.Scan() {
-		//		var success FileJSON
-		//		var fileToAdd shared.FileID
-		//		if err := json.Unmarshal(scanner.Bytes(), &success); err != nil {
-		//			log.Printf("error decoding response: %v", err)
-		//			if e, ok := err.(*json.SyntaxError); ok {
-		//				log.Printf("syntax error at byte offset %d, %v", e.Offset, success)
-		//			} // if
-		//		} // if
-
-		//		fileToAdd = shared.FileID{
-		//			Title:       success.Title,
-		//			ObjectKey:   success.ObjectKey,
-		//			OriginalKey: success.OriginalKey,
-		//			URL:         success.URL,
-		//		}
-		//		utf8body := string(success.Body)
-		//		decodedBody, err := base64.StdEncoding.DecodeString(utf8body)
-		//		if err != nil {
-		//			log.Panic("unable to decode properly processed file")
-		//		} // if
-		//		l.logSuccess(fileToAdd, decodedBody)
-		//	} // for
-
 	} // readStdout
 
 	go readStdout(&l)
@@ -229,31 +201,6 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 			log.Printf("stderr scanner error: %v", err)
 		} // if
 
-		//// Reading failed files
-		//scanner := bufio.NewScanner(stderr)
-		//for scanner.Scan() {
-		//	var failure FileJSON
-		//	var fileToAdd shared.FileID
-		//	// correctly read error
-		//	if json.Valid(scanner.Bytes()) {
-		//		if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
-		//			fileToAdd = shared.FileID{
-		//				ObjectKey: failure.Err,
-		//			}
-		//			// log the file error
-		//			l.logFailure(fileToAdd, fileToAdd.ObjectKey)
-		//		} // if
-		//	} else {
-		//		// NOTE: THIS SHOULD NEVER THROW
-		//		log.Fatalf("Non-JSON error: %s", scanner.Text())
-		//		if err := json.Unmarshal(scanner.Bytes(), &failure); err != nil {
-		//			if e, ok := err.(*json.SyntaxError); ok {
-		//				log.Printf("syntax error at byte offset %d, %v", e.Offset, failure)
-		//			} // if
-		//		} // if
-		//	} // if
-		//} // for
-
 	} // readStderr
 
 	go readStderr(&l)
@@ -274,26 +221,30 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 		if err != nil {
 			msg := fmt.Sprintf("marshal metadata: %v", err)
 			l.logFailure(id, msg)
+			continue
 		} // if
 
 		// write metadata + newline
 		if _, err := stdin.Write(metaJSON); err != nil {
-			msg := fmt.Errorf("write meta to stdin: %v", err)
-			return nil, msg
+			msg := fmt.Sprintf("write meta to stdin: %v", err)
+			l.logFailure(id, msg)
+			continue
 		} // if
 		if _, err := stdin.Write([]byte("\n")); err != nil {
-			msg := fmt.Errorf("write newline to stdin: %v", err)
-			return nil, msg
+			msg := fmt.Sprintf("write newline to stdin: %v", err)
+			l.logFailure(id, msg)
+			continue
 		} // if
 
 		// wrap stdin with b64 encoder
 		encoder := base64.NewEncoder(base64.StdEncoding, stdin)
+
 		// stream file to python subprocess
 		_, err = io.Copy(encoder, r)
 
 		// close encoder so b64 padding is applied and input is flushed
 		if cerr := encoder.Close(); cerr != nil {
-			log.Printf("encoder close error: %v", cerr)
+			log.Fatalf("encoder close error: %v", cerr)
 		} // if
 
 		// check error on io copy
@@ -324,42 +275,14 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 
 	// wait for readers
 	wg.Wait()
+
 	if err := cmd.Wait(); err != nil {
 		log.Printf("python exit error: %v", err)
 	} // if
+	fFiles := l.e.FailedFiles
+	for _, err := range fFiles {
+		log.Printf("file failed to convert: error from python script: %s", err)
+	} // for
 	return &l.e, nil
+
 } // Extract
-
-/*
-Returns a properly encoded json object ready for streaming
-
-On error, populates ExtractionResult.FailedFiles
-*/
-//func buildJSON(id shared.FileID, r io.ReadCloser) ([]byte, error) {
-//
-//	var err error
-//	var buf []byte
-//	var jsonData []byte
-//	var jsonObject FileJSON
-//	buf, err = io.ReadAll(r)
-//	if err != nil {
-//		return jsonData, err
-//	} // if
-//
-//	// encode body in b64
-//	encodedBuf := base64.StdEncoding.EncodeToString(buf)
-//
-//	// encode data
-//	jsonObject = FileJSON{
-//		Body:        encodedBuf,
-//		Title:       id.Title,
-//		ObjectKey:   id.ObjectKey,
-//		URL:         id.URL,
-//		OriginalKey: id.ObjectKey,
-//	}
-//	jsonData, err = json.Marshal(jsonObject)
-//	if err != nil {
-//		return jsonData, err
-//	} // if
-//	return jsonData, err
-//} // buildJSON

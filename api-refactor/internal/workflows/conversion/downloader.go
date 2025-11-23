@@ -11,7 +11,7 @@ import (
 	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
 )
 
-func (c *Conversion) Download(ctx context.Context, input types.ConversionInput) (*shared.DownloadResult, error) {
+func (c *Conversion) Download(ctx context.Context, input *types.ConversionInput) (*shared.DownloadResult, error) {
 	var err error
 	result := shared.DownloadResult{
 		SuccessFiles: make(map[shared.FileID]io.ReadCloser),
