@@ -7,7 +7,65 @@ import base64
 import traceback
 
 BODY_DELIMETER = b'--END-BODY--\n'
-BUF_SIZE = 4096
+BUF_SIZE = 50000
+
+
+def process_bodies(bodies):
+    results = dict()
+    for key, file in bodies.items():
+        body_b64 = file.get('body_b64')
+        meta = file.get('meta')
+        try:
+            # decode b64 to bytes
+            missing_padding = len(body_b64) % 4
+            if missing_padding:
+
+                pdf_bytes = base64.b64decode(body_b64 + b'==')
+            else:
+                pdf_bytes = base64.b64decode(body_b64)
+        except Exception as e:
+            err_obj = {
+                "error": f"read/decode body error: {str(e)}",
+                "originalKey": meta['objectKey']
+            }
+            print(json.dumps(err_obj), file=sys.stderr, flush=True)
+            continue
+        # convert pdf bytes to text
+        try:
+            converted = convert_to_txt(pdf_bytes)
+            # encode converted bytes
+            converted_b64 = base64.b64encode(converted)
+        except Exception as e:
+            tb = traceback.format_exc()
+            err_obj = {"error": f"convert error: {str(e)}", "trace": tb}
+            print(json.dumps(err_obj), file=sys.stderr, flush=True)
+            continue
+
+        # prepare metadata for return
+        try:
+            out_meta = dict(meta)
+            # make sure body field exists
+            out_meta['body'] = ""
+            # add new object key to payload
+            old_key = out_meta['originalKey']
+            try:
+                new_key = get_new_object_key(old_key)
+                out_meta['objectKey'] = new_key
+                out_json = json.dumps(out_meta)
+            except Exception as e:
+                err_obj = {
+                    "error": f"could not build new object key: {str(e)}"
+                }
+                print(json.dumps(err_obj), file=sys.stderr, flush=True)
+                continue
+        except Exception as e:
+            err_obj = {"error": f"metadata build error: {str(e)}"}
+            print(json.dumps(err_obj), file=sys.stderr, flush=True)
+            continue
+
+        results[key] = {"converted_b64": converted_b64, "out_json": out_json}
+
+    return results
 
 
 def main():
@@ -16,6 +74,7 @@ def main():
     Driver for the script
 
     '''
+    bodies = dict()
     for meta_line in sys.stdin:
         meta_line = meta_line.rstrip("\n")
         if not meta_line:
@@ -27,7 +86,6 @@ def main():
         except Exception as e:
             err_obj = {
                 "error": f"invalid json metadata: {str(e)}",
-                "originalKey": meta['objectKey']
             }
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
             continue
@@ -51,43 +109,6 @@ def main():
                     leftover = combined[idx+len(BODY_DELIMETER):]
                     break
 
-                # say the delimeter is of length N
-
-                # if the ENTIRE sentinel is not found,
-                # we still need to keep the last N - 1
-                # bytes of the chunk
-
-                # why N - 1 bytes?
-
-                # because this is the max
-                # amount of bytes of the delimeter that could be
-                # read without actually detecting the entire
-                # delimeter
-
-                # consider:
-                    # sometexthere--END-BODY-- -> N bytes long -> detected
-                    # sometexthere--END-BODY-  -> N - 1 bytes long -> not detected
-
-                    # we save "--END-BODY-"
-
-                    # we prepend on to the next chunk read which contains
-                    # the remaining bytes of the delimeter
-
-                    # for example:
-                    #   "--END-BODY-" + "-[json meta data]nextfilebodyhere..."
-                    #   new chunk = --END-BODY--[json meta data]nextfilebodyhere..."
-                    #
-                    #   now when we check this chunk, a detection is triggered
-                    #
-                    #   we then read up to the start of the sentinel
-                    #   and append it to our chunks
-                    #   (which in this case, is nothing. because the sentinel
-                    #    is detected to have started at the first character,
-                    #    idx would = 0, and the call to combined[:idx] would return
-                    #    and empty list. so nothing gets appended to our total chunks."
-
-                    # in this case, that remaining dash is what we need to trigger a
-                    # detection and move forward with the body processing.
                 else:
                     # keep the remaining bytes for overlap
                     keep = combined[-(len(BODY_DELIMETER)-1):]
@@ -95,84 +116,19 @@ def main():
                     leftover = keep
             # get b64 string
             body_b64 = b''.join(chunks)
-            # decode b64 to bytes
-            pdf_bytes = base64.b64decode(body_b64)
+            key = meta.get('objectKey')
+            bodies[key] = {"meta": meta, "body_b64": body_b64}
         except Exception as e:
-            err_obj = {
-                "error": f"read/decode body error: {str(e)}",
-                "originalKey": meta['objectKey']
-            }
+            err_obj = {"error": f"error reading body in python {str(e)}"}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
 
-            # do we also need to find a way to read the rest
-            # of stdin after we throw an error in this block????
+    # process all bodies
+    results = process_bodies(bodies)
 
-            # possible issues:
-
-            # characters not in b64 alphabet are being passed in
-            # this could cause decode to throw an error
-
-            # properly padded base64 strings have a length that is
-            # a multiple of four. so we can check the lengh is valid,
-            # and if not, add padding ourselves
-
-            # either way, our base64 string is probably corrupted in some way
-
-            # we know that if this exception happens,
-            # it happens because of a call to b64decode
-            # which means, either an EOF was hit or the delimeter was found
-
-            # but since the last chunk read is only up until the start
-            # of the delimeter, that means the rest of the delimeter would
-            # possibly be left in stdin.
-
-            # without assuming any flushing is happening on the
-            # go side of things, ( which im pretty sure it isnt,
-            # you can't flush stdin ) we need to read the rest of
-            # the delimeter and discard it so the pipe is cleared
-            # for the next file
-
-            # could be possible the delimeter is being split across two chunks,
-            # but this is probably not the reason error is being thrown everytime
-
-            # this should take care of getting rid of the delimeter
-            while True:
-                chunk = sys.stdin.buffer.read(BUF_SIZE)
-                idx = chunk.find(BODY_DELIMETER)
-                if idx >= 0:
-                    break
-            continue
-        # convert pdf bytes to text
-        try:
-            converted = convert_to_txt(pdf_bytes)
-            # encode converted bytes
-            converted_b64 = base64.b64encode(converted)
-        except Exception as e:
-            tb = traceback.format_exc()
-            err_obj = {"error": f"convert error: {str(e)}", "trace": tb}
-            print(json.dumps(err_obj), file=sys.stderr, flush=True)
-            continue
-        # prepare metadata for return
-        try:
-            out_meta = dict(meta)
-            # make sure body field exists
-            out_meta['body'] = ""
-            # add new object key to payload
-            old_key = out_meta['originalKey']
-            try:
-                new_key = get_new_object_key(old_key)
-                out_meta['objectKey'] = new_key
-                out_json = json.dumps(out_meta)
-            except Exception as e:
-                err_obj = {
-                    "error": f"could not build new object key: {str(e)}"
-                }
-                print(json.dumps(err_obj), file=sys.stderr, flush=True)
-                continue
-        except Exception as e:
-            err_obj = {"error": f"metadata build error: {str(e)}"}
-            print(json.dumps(err_obj), file=sys.stderr, flush=True)
-            continue
+    # write all results:
+    for key, result in results.items():
+        out_json = result.get('out_json')
+        converted_b64 = result.get('converted_b64')
         # write metadata line
         print(out_json, file=sys.stdout, flush=True)
         # stream converted bytes to buffer, then the sentinel

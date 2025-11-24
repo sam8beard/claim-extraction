@@ -1,7 +1,6 @@
 package processing
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -16,7 +15,7 @@ import (
 )
 
 type FetchResult struct {
-	SuccessFiles map[shared.File]*bytes.Buffer
+	SuccessFiles map[shared.File]io.ReadCloser
 }
 
 /*
@@ -24,7 +23,7 @@ Fetch text bodies of converted files
 */
 func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*FetchResult, error) {
 	fetchResult := FetchResult{
-		SuccessFiles: make(map[shared.File]*bytes.Buffer, 0),
+		SuccessFiles: make(map[shared.File]io.ReadCloser, 0),
 	}
 
 	// get rows of files that have been converted
@@ -61,7 +60,6 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 			continue
 		} // if
 
-		// TESTING
 		info, _ := object.Stat()
 		obK := info.Key
 		// The specified key does not exist
@@ -72,17 +70,10 @@ func (p *Processing) Fetch(ctx context.Context, input *types.ProcessingInput) (*
 		} // if
 		log.Printf("key found in bucket: %s\n", obK)
 
-		// buf for object
-		var newBuff bytes.Buffer
-		_, err = io.Copy(&newBuff, object)
-		if err != nil {
-			log.Printf("unable to copy contents: %s\n", key)
-			continue
-		} // if
 		newSFile := shared.File{
 			ObjectKey: key,
 		}
-		fetchResult.SuccessFiles[newSFile] = &newBuff
+		fetchResult.SuccessFiles[newSFile] = object
 	} // for
 	return &fetchResult, nil
 } // Fetch

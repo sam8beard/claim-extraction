@@ -79,7 +79,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
 
-	cmd := exec.Command(pythonExec, "-u", scriptPath)
+	cmd := exec.Command(pythonExec, "-u", "-W", "ignore", scriptPath)
 	cmd.Dir = pythonDir
 
 	// copy curr environment, but inject venv info
@@ -116,8 +116,10 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 
 		bufReader := bufio.NewReader(stdout)
 
+		// keep track of leftover bytes in case of delimiter split
+		leftover := []byte{}
 		for {
-			metaLine, err := bufReader.ReadString('\n')
+			line, err := bufReader.ReadBytes('\n')
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -125,7 +127,18 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 				log.Printf("read stdout meta line error: %v", err)
 				return
 			} // if
-			metaLine = metaLine[:len(metaLine)-1] // strips the newline character
+			line = append(leftover, line...)
+
+			leftover = nil
+			//metaLine = metaLine[:len(metaLine)-1] // strips the newline character
+
+			// split at newline boundaries
+			parts := bytes.SplitN(line, []byte("\n"), 2)
+			metaLine := parts[0]
+
+			if len(parts) == 2 {
+				leftover = parts[1]
+			} // if
 
 			var meta FileJSON
 			if err := json.Unmarshal([]byte(metaLine), &meta); err != nil {
@@ -135,27 +148,40 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 
 			// read b64 body until sentinel
 			var buf bytes.Buffer
-			sentinel := []byte(bodySentinel)
-			tmp := make([]byte, 4096)
+			overlap := []byte{}
+
+			//sentinel := []byte(bodySentinel)
+			//tmp := make([]byte, 4096)
 			for {
-				n, readErr := bufReader.Read(tmp)
-				if n > 0 {
-					chunk := tmp[:n]
-					// check if sentinel is in chunk
-					if idx := bytes.Index(chunk, sentinel); idx >= 0 {
-						// read up until sentinel and exit loop
-						buf.Write(chunk[:idx])
+				chunk := make([]byte, 4096)
+				n, err := bufReader.Read(chunk)
+				if n == 0 && err != nil {
+					if err == io.EOF {
 						break
 					} // if
-					// otherwise, write up to buf size
-					buf.Write(chunk)
-				} // if
-				if readErr != nil {
-					if readErr == io.EOF {
-						break
-					} // if
-					log.Printf("error reading stdout body: %v", readErr)
+					log.Printf("error reading stdout body in go: %v", err)
 					break
+				} // if
+				chunk = chunk[:n]
+				combined := append(overlap, chunk...)
+				idx := bytes.Index(combined, []byte(bodySentinel))
+				if idx >= 0 {
+					buf.Write(combined[:idx])
+
+					start := idx + len(bodySentinel)
+					if start < len(combined) {
+						leftover = append(leftover, combined[start:]...)
+					} // if
+					break
+				} //if
+
+				// sliding window
+				if len(combined) >= len(bodySentinel)-1 {
+					keep := combined[len(combined)-(len(bodySentinel)-1):]
+					buf.Write(combined[:len(combined)-(len(bodySentinel)-1)])
+					overlap = keep
+				} else {
+					overlap = combined
 				} // if
 			} // for
 

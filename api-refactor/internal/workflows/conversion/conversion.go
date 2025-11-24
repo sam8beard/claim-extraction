@@ -58,7 +58,7 @@ func (c *Conversion) Run(ctx context.Context, input *types.ConversionInput) (*ty
 				log.Printf("%s -- %s\n", file.ObjectKey, msg)
 			} // for
 		} // if
-		log.Fatal("No successful files were returned from Extract")
+		// log.Fatal("No successful files were returned from Extract")
 	} // if
 
 	log.Println("Extraction successful")
