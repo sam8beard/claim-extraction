@@ -51,6 +51,13 @@ pgadmin-data/
 # environment vars
 .env
 
+# searxng 
+searxng
+
+# mino
+minio
+
+
 python/nlp/training/*
 
 # nlp logs
