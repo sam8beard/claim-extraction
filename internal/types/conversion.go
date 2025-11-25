@@ -1,6 +1,6 @@
 package types
 
-import "github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+import "github.com/sam8beard/claim-extraction/internal/types/shared"
 
 /*
 Acquisition types

@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/utils"
+	"github.com/sam8beard/claim-extraction/internal/utils"
 )
 
 type IsWorkflow interface {

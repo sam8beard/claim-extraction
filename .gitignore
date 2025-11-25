@@ -1,6 +1,6 @@
 # Python
 
-**/venv/
+**/.venv/
 **/__pycache__/
 **/*.pyc
 **/*.pyo
@@ -8,7 +8,7 @@
 **/*.pyre/
 
 # python dir for testing
-python
+
 
 # nvim
 *.vim
@@ -40,23 +40,29 @@ go/fetcher_api/api
 # AWS credentials and config
 .aws/
 
+
+# python
+python/
 # Go build artifacts
 go/bin/
 go/pkg/
 
-# Docker compose services
 pgdata/
 pgadmin-data/
+# Docker compose services
+**/pg-data/
+**/pgadmin-data/
 
 # environment vars
 .env
 
 # searxng 
-searxng
+**/searxng-data/
 
 # mino
 minio
 
+**/minio-data/
 
 python/nlp/training/*
 

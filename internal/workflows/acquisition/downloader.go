@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 type DownloadResults struct {

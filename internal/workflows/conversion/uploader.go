@@ -8,7 +8,7 @@ import (
 	"log"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 type UploadResult struct {

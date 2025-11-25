@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 /*

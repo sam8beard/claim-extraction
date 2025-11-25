@@ -7,8 +7,8 @@ import (
 	"io"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 func (c *Conversion) Download(ctx context.Context, input *types.ConversionInput) (*shared.DownloadResult, error) {

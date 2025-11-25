@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/db"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/db/models"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/db"
+	"github.com/sam8beard/claim-extraction/internal/db/models"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 type UploadResult struct {

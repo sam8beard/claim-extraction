@@ -60,7 +60,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	_, currentFile, _, _ := runtime.Caller(0) // file where this code is
 	currentDir := filepath.Dir(currentFile)
 	pythonDir := filepath.Join(currentDir, "python")
-	venvDir := filepath.Join(pythonDir, "venv")
+	venvDir := filepath.Join(pythonDir, ".venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "nlp_processing.py")
 

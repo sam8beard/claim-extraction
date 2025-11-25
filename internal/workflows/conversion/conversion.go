@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 // represents a conversion instance

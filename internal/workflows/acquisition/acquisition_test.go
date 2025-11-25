@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types"
+	"github.com/sam8beard/claim-extraction/internal/types"
 )
 
 var ctx = context.Background()

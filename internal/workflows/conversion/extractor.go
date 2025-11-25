@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/sam8beard/claim-extraction/api-refactor/internal/types/shared"
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 	"io"
 	"log"
 	"os"
@@ -75,7 +75,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	goDir := filepath.Dir(goFile)
 	// build path to python venv and script
 	pythonDir := filepath.Join(goDir, "python")
-	venvDir := filepath.Join(pythonDir, "venv")
+	venvDir := filepath.Join(pythonDir, ".venv")
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
 
