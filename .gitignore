@@ -42,7 +42,6 @@ go/fetcher_api/api
 
 
 # python
-python
 python/
 # Go build artifacts
 go/bin/
