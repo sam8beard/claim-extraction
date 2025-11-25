@@ -8,7 +8,7 @@
 **/*.pyre/
 
 # python dir for testing
-
+/python/
 
 # nvim
 *.vim
@@ -22,18 +22,6 @@
 # Lambda 
 python/lambda/deployment_package.zip
 
-# go executables 
-go/uploader/upload
-upload.sh
-go/uploader/build.go
-go/uploader/run-test.go
-go/s3_fetcher/build.sh
-go/s3_fetcher/fetch-keys
-go/web_scraper/web_scraper
-go/scrape_uploader/fetch
-go/minio_uploader/minio_uploader
-go/fetcher_api/api
-
 # macOS
 **/.DS_Store
 
@@ -41,14 +29,13 @@ go/fetcher_api/api
 .aws/
 
 
-# python
-python/
 # Go build artifacts
 go/bin/
 go/pkg/
 
 pgdata/
 pgadmin-data/
+
 # Docker compose services
 **/pg-data/
 **/pgadmin-data/
@@ -64,20 +51,10 @@ minio
 
 **/minio-data/
 
-python/nlp/training/*
 
-# nlp logs
-python/nlp/logs/*
 
-go/uploader/nlp-files/*
 
-python/nlp/populate-logs.sh
 
-python/nlp/ner_v1.0
-python/nlp/spancat_v1.0
 
 # MinIO
 minio/minio_data
-
-go-tui/backend/acquisition/testing.log
-api-refactor/internal/workflows/conversion/python/venv
