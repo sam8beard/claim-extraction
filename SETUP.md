@@ -6,7 +6,7 @@
 ```
 This will generate a default `.env` file in the project root directory to be used by your program. 
 
->NOTE:==**All values modified here must also be changed inside `docker-compose.yaml`, `minio-setup.sh`, and `pg-setup.sh`**.==
+>NOTE: ==**All values modified here must also be changed inside `docker-compose.yaml`, `minio-setup.sh`, and `pg-setup.sh`**.==
 
 ### Run `docker-compose.yaml`
 ```bash
