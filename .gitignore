@@ -32,7 +32,7 @@ go/minio_uploader/minio_uploader
 go/fetcher_api/api
 
 # macOS
-.DS_Store
+**/.DS_Store
 
 # AWS credentials and config
 .aws/

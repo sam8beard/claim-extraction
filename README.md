@@ -1,6 +1,11 @@
 # claimEx
 A command line tool for extracting structured information from argument-rich/claim-rich PDF documents
 
+## Requirements 
+* `Go` 1.25.4+
+* `Python` 3.14.0+
+* `Docker` 28.1.1+
+
 ## How It Works
 *	Search for any topic via [SearXNG][searxng] 
 *	Specify a number of files to aggregate
@@ -29,14 +34,18 @@ A command line tool for extracting structured information from argument-rich/cla
     * How *confident* the model was at predicting a given span
 
 > #### NOTE: File sizes of up to ~200MB are recommended for optimal performance
+
+## Getting Started
+
+#### Follow the steps in `SETUP.md` to ensure all tools, modules, and other dependencies are installed and setup correctly.
+
 ---
 ## Powered By
  #### [**spaCy**][spacy] for NLP 
  #### [**SearXNG**][searxng] for search
  #### [**MinIO**][minio] for object storage
 ----
-## Getting Started
-> Project in progress 
+
 
 [spacy]:https://github.com/explosion/spaCy
 [searxng]: https://github.com/searxng/searxng
