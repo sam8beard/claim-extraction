@@ -7,6 +7,9 @@
 **/*.egg-info/
 **/*.pyre/
 
+# python dir for testing
+python
+
 # nvim
 *.vim
 
