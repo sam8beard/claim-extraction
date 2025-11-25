@@ -1,4 +1,4 @@
-# claimEx
+# claimex
 A command line tool for extracting structured information from argument-rich/claim-rich PDF documents
 
 ## Requirements 
