@@ -10,7 +10,6 @@ import (
 	"github.com/sam8beard/claim-extraction/internal/workflows/processing"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
