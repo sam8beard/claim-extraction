@@ -44,6 +44,9 @@ claimex-results/
 /pgdata/
 /pgadmin-data/
 
+# searxng dev testing
+/searxng/
+
 # build script for testing
 /build-claimex.sh
 
