@@ -1,5 +1,4 @@
 # Python
-
 **/.venv/
 **/__pycache__/
 **/*.pyc
@@ -7,54 +6,37 @@
 **/*.egg-info/
 **/*.pyre/
 
-# python dir for testing
-/python/
-
-# nvim
+# nvim sessions
 *.vim
 
-# debug notes
+# Debug notes
 .notes/
 
 # Vscode
 .vscode/
 
-# Lambda 
-python/lambda/deployment_package.zip
-
 # macOS
 **/.DS_Store
-
-# AWS credentials and config
-.aws/
-
 
 # Go build artifacts
 go/bin/
 go/pkg/
 
-pgdata/
-pgadmin-data/
-
-# Docker compose services
-**/pg-data/
-**/pgadmin-data/
-
-# environment vars
+# Environment vars
 .env
 
-# searxng 
-**/searxng-data/
+# Mounts 
+**/minio-data/*
+**/searxng-data/*
+**/pg-data/*
+**/pgadmin-data/*
 
-# mino
-minio
+# mino dev testing 
+/minio/minio_data
 
-**/minio-data/
+# python dev testing
+/python/
 
-
-
-
-
-
-# MinIO
-minio/minio_data
+# pg dev testing
+/pgdata/
+/pgadmin-data/
