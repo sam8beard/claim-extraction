@@ -6,7 +6,7 @@
 ```
 This will generate a default `.env` file in the project root directory to be used by your program. 
 
->NOTE: **All values modified here must also be changed inside `docker-compose.yaml`, `minio-setup.sh`, and `pg-setup.sh`**.
+>NOTE: **All values modified here must also be changed inside `docker-compose.yaml`, `mc-setup.sh`, and `pg-setup.sh`**.
 
 ### Run `docker-compose.yaml`
 ```bash
@@ -33,10 +33,3 @@ This will create a `documents` table in `postgres` container for pipeline metada
 ./scripts/python-setup.sh
 ```
 This will create virtual environments in the workflows that depend on Python scripts and install the required dependencies for each one. 
-
-```bash
-docker exec -i postgres psql -U username -d claimex-db -f /pg/schema/create_documents.sql
-```
-
-
-
