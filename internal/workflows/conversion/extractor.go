@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/sam8beard/claim-extraction/internal/types/shared"
 	"io"
 	"log"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"github.com/sam8beard/claim-extraction/internal/types/shared"
 )
 
 const bodySentinel = "--END-BODY--\n"
@@ -39,20 +40,18 @@ type Locker struct {
 }
 
 func (l *Locker) logSuccess(f shared.FileID, b []byte) {
-	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
+	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.e.SuccessFiles[f] = b
-} // logSuccess
+}
 
 func (l *Locker) logFailure(f shared.FileID, msg string) {
-	l.mu.Lock() // calling routine blocks other routines from modifying the mutex
+	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.e.FailedFiles[f] = msg
-
-} // logFailure
+}
 
 func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*ExtractionResult, error) {
-	var err error
 	l := Locker{
 		e: ExtractionResult{
 			FailedFiles:  make(map[shared.FileID]string),
@@ -79,7 +78,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 	pythonExec := filepath.Join(venvDir, "bin", "python3")
 	scriptPath := filepath.Join(pythonDir, "convert_pdf.py")
 
-	cmd := exec.Command(pythonExec, "-u", "-W", "ignore", scriptPath)
+	cmd := exec.CommandContext(ctx, pythonExec, "-u", "-W", "ignore", scriptPath)
 	cmd.Dir = pythonDir
 
 	// copy curr environment, but inject venv info
@@ -115,77 +114,103 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 		defer wg.Done()
 
 		bufReader := bufio.NewReader(stdout)
-
-		// keep track of leftover bytes in case of delimiter split
 		leftover := []byte{}
+
 		for {
-			line, err := bufReader.ReadBytes('\n')
-			if err != nil {
-				if err == io.EOF {
+			// Read metadata line (handling leftover from previous iteration)
+			var metaLine []byte
+
+			if len(leftover) > 0 {
+				// Check if leftover contains a complete line
+				if idx := bytes.IndexByte(leftover, '\n'); idx >= 0 {
+					metaLine = leftover[:idx]
+					leftover = leftover[idx+1:]
+				} else {
+					// Need more data - read and append to leftover
+					chunk, readErr := bufReader.ReadBytes('\n')
+					if readErr != nil {
+						if readErr == io.EOF {
+							return
+						}
+						log.Printf("read stdout meta line error: %v", readErr)
+						return
+					}
+					metaLine = append(leftover, bytes.TrimSuffix(chunk, []byte("\n"))...)
+					leftover = nil
+				}
+			} else {
+				// Read fresh line
+				line, readErr := bufReader.ReadBytes('\n')
+				if readErr != nil {
+					if readErr == io.EOF {
+						return
+					}
+					log.Printf("read stdout meta line error: %v", readErr)
 					return
-				} // if
-				log.Printf("read stdout meta line error: %v", err)
-				return
-			} // if
-			line = append(leftover, line...)
+				}
+				metaLine = bytes.TrimSpace(line)
+			}
 
-			leftover = nil
-			//metaLine = metaLine[:len(metaLine)-1] // strips the newline character
+			if len(metaLine) == 0 {
+				continue
+			}
 
-			// split at newline boundaries
-			parts := bytes.SplitN(line, []byte("\n"), 2)
-			metaLine := parts[0]
-
-			if len(parts) == 2 {
-				leftover = parts[1]
-			} // if
-
+			// Parse metadata JSON
 			var meta FileJSON
-			if err := json.Unmarshal([]byte(metaLine), &meta); err != nil {
+			if err := json.Unmarshal(metaLine, &meta); err != nil {
 				log.Printf("invalid metadata JSON from python: %v", err)
 				continue
-			} // if
+			}
 
-			// read b64 body until sentinel
+			// Read base64 body until sentinel
 			var buf bytes.Buffer
-			overlap := []byte{}
+			overlap := leftover
+			leftover = nil
 
-			//sentinel := []byte(bodySentinel)
-			//tmp := make([]byte, 4096)
 			for {
 				chunk := make([]byte, 4096)
 				n, err := bufReader.Read(chunk)
-				if n == 0 && err != nil {
-					if err == io.EOF {
+				if n > 0 {
+					chunk = chunk[:n]
+					combined := append(overlap, chunk...)
+
+					// Check for sentinel
+					idx := bytes.Index(combined, []byte(bodySentinel))
+					if idx >= 0 {
+						// Found sentinel - write everything before it
+						buf.Write(combined[:idx])
+
+						// Save everything after sentinel as leftover for next file
+						start := idx + len(bodySentinel)
+						if start < len(combined) {
+							leftover = combined[start:]
+						}
 						break
-					} // if
-					log.Printf("error reading stdout body in go: %v", err)
+					}
+
+					// No sentinel found - use sliding window to handle sentinel split across chunks
+					if len(combined) >= len(bodySentinel)-1 {
+						// Write all but the last (sentinelLen-1) bytes
+						writeUntil := len(combined) - (len(bodySentinel) - 1)
+						buf.Write(combined[:writeUntil])
+						overlap = combined[writeUntil:]
+					} else {
+						// Combined is smaller than sentinel - keep everything
+						overlap = combined
+					}
+				}
+
+				if err != nil {
+					if err == io.EOF {
+						log.Printf("unexpected EOF while reading body")
+						break
+					}
+					log.Printf("error reading stdout body: %v", err)
 					break
-				} // if
-				chunk = chunk[:n]
-				combined := append(overlap, chunk...)
-				idx := bytes.Index(combined, []byte(bodySentinel))
-				if idx >= 0 {
-					buf.Write(combined[:idx])
+				}
+			}
 
-					start := idx + len(bodySentinel)
-					if start < len(combined) {
-						leftover = append(leftover, combined[start:]...)
-					} // if
-					break
-				} //if
-
-				// sliding window
-				if len(combined) >= len(bodySentinel)-1 {
-					keep := combined[len(combined)-(len(bodySentinel)-1):]
-					buf.Write(combined[:len(combined)-(len(bodySentinel)-1)])
-					overlap = keep
-				} else {
-					overlap = combined
-				} // if
-			} // for
-
-			// buf now contains b64 encoded raw text
+			// Decode base64 body
 			decoded, decErr := base64.StdEncoding.DecodeString(buf.String())
 			if decErr != nil {
 				msg := fmt.Sprintf("unable to decode base64 body from python: %v", decErr)
@@ -193,7 +218,7 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 				fid := shared.FileID{ObjectKey: meta.ObjectKey}
 				l.logFailure(fid, msg)
 				continue
-			} // if
+			}
 
 			fileToAdd := shared.FileID{
 				Title:       meta.Title,
@@ -202,38 +227,45 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 				URL:         meta.URL,
 			}
 			l.logSuccess(fileToAdd, decoded)
-		} // for
-
-	} // readStdout
+		}
+	}
 
 	go readStdout(&l)
 
+	// readStderr processes error messages from Python
 	readStderr := func(l *Locker) {
 		defer wg.Done()
 		stderrScan := bufio.NewScanner(stderr)
 
 		for stderrScan.Scan() {
 			line := stderrScan.Text()
-			// try to parse
+			// Try to parse as JSON error
 			var failure FileJSON
 			if err := json.Unmarshal([]byte(line), &failure); err == nil && failure.Err != "" {
-				fid := shared.FileID{ObjectKey: failure.Err}
+				// Use OriginalKey if available, otherwise use ObjectKey from error
+				objKey := failure.OriginalKey
+				if objKey == "" {
+					objKey = failure.ObjectKey
+				}
+				fid := shared.FileID{ObjectKey: objKey}
 				l.logFailure(fid, failure.Err)
 			} else {
 				log.Printf("python stderr: %s", line)
-			} // if
-		} // for
+			}
+		}
 		if err := stderrScan.Err(); err != nil {
 			log.Printf("stderr scanner error: %v", err)
-		} // if
-
-	} // readStderr
+		}
+	}
 
 	go readStderr(&l)
 
-	// write json objects
+	// Use buffered writer for stdin
+	stdinWriter := bufio.NewWriter(stdin)
+
+	// Write JSON objects to Python subprocess
 	for id, r := range files {
-		// build metadata
+		// Build metadata
 		jsonObject := FileJSON{
 			Body:        "",
 			Title:       id.Title,
@@ -242,73 +274,90 @@ func (c *Conversion) Extract(ctx context.Context, d *shared.DownloadResult) (*Ex
 			OriginalKey: id.ObjectKey,
 		}
 
-		// build metadata
+		// Marshal metadata
 		metaJSON, err := json.Marshal(jsonObject)
 		if err != nil {
 			msg := fmt.Sprintf("marshal metadata: %v", err)
 			l.logFailure(id, msg)
 			continue
-		} // if
+		}
 
-		// write metadata + newline
-		if _, err := stdin.Write(metaJSON); err != nil {
+		// Write metadata + newline
+		if _, err := stdinWriter.Write(metaJSON); err != nil {
 			msg := fmt.Sprintf("write meta to stdin: %v", err)
 			l.logFailure(id, msg)
 			continue
-		} // if
-		if _, err := stdin.Write([]byte("\n")); err != nil {
+		}
+		if _, err := stdinWriter.Write([]byte("\n")); err != nil {
 			msg := fmt.Sprintf("write newline to stdin: %v", err)
 			l.logFailure(id, msg)
 			continue
-		} // if
+		}
 
-		// wrap stdin with b64 encoder
+		// Flush metadata before writing body
+		if err := stdinWriter.Flush(); err != nil {
+			msg := fmt.Sprintf("flush metadata: %v", err)
+			l.logFailure(id, msg)
+			continue
+		}
+
+		// Write base64 encoded body directly to stdin (not buffered writer)
 		encoder := base64.NewEncoder(base64.StdEncoding, stdin)
 
-		// stream file to python subprocess
+		// Stream file to python subprocess
 		_, err = io.Copy(encoder, r)
 
-		// close encoder so b64 padding is applied and input is flushed
+		// Close encoder so base64 padding is applied and input is flushed
 		if cerr := encoder.Close(); cerr != nil {
-			log.Fatalf("encoder close error: %v", cerr)
-		} // if
+			msg := fmt.Sprintf("encoder close error: %v", cerr)
+			l.logFailure(id, msg)
+			if err := r.Close(); err != nil {
+				log.Printf("close reader after encoder error: %v", err)
+			}
+			continue
+		}
 
-		// check error on io copy
+		// Check error on io.Copy
 		if err != nil {
 			msg := fmt.Sprintf("io copy to python subprocess: %v", err)
 			l.logFailure(id, msg)
+			if err := r.Close(); err != nil {
+				log.Printf("close reader after copy error: %v", err)
+			}
 			continue
-		} // if
+		}
 
-		// write file delimeter
+		// Write file delimiter
 		if _, err := stdin.Write([]byte(bodySentinel)); err != nil {
-			msg := fmt.Errorf("write sentinel: %v", err)
+			msg := fmt.Errorf("write sentinel: %w", err)
 			return nil, msg
-		} // if
+		}
 
-		// close reader
+		// Close reader
 		if err := r.Close(); err != nil {
 			msg := fmt.Sprintf("close reader: %v", err)
 			l.logFailure(id, msg)
-		} // if
-	} // for
+		}
+	}
 
-	// close stdin after all files are written
+	// Close stdin after all files are written
 	if err := stdin.Close(); err != nil {
-		msg := fmt.Errorf("stdin close error: %v", err)
+		msg := fmt.Errorf("stdin close error: %w", err)
 		return nil, msg
-	} // if
+	}
 
-	// wait for readers
+	// Wait for goroutines to finish
 	wg.Wait()
 
+	// Wait for python process to exit
 	if err := cmd.Wait(); err != nil {
 		log.Printf("python exit error: %v", err)
-	} // if
-	fFiles := l.e.FailedFiles
-	for _, err := range fFiles {
-		log.Printf("file failed to convert: error from python script: %s", err)
-	} // for
-	return &l.e, nil
+	}
 
-} // Extract
+	// Log all failures
+	for fid, errMsg := range l.e.FailedFiles {
+		log.Printf("file failed to convert [%s]: %s", fid.ObjectKey, errMsg)
+	}
+
+	return &l.e, nil
+}

@@ -3,7 +3,9 @@ set -e
 
 echo "Generating .env file..."
 
-ENV_FILE=".env"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+ENV_FILE="$PROJECT_ROOT/.env"
 
 cat > $ENV_FILE <<EOL
 

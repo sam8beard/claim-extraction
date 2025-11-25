@@ -7,7 +7,7 @@ import base64
 import traceback
 
 BODY_DELIMETER = b'--END-BODY--\n'
-BUF_SIZE = 50000
+BUF_SIZE = 4096
 
 
 def process_bodies(bodies):
@@ -74,75 +74,72 @@ def main():
     Driver for the script
 
     '''
-    bodies = dict()
     for meta_line in sys.stdin:
         meta_line = meta_line.rstrip("\n")
         if not meta_line:
             continue
 
-        # parse json metadata
         try:
             meta = json.loads(meta_line)
         except Exception as e:
-            err_obj = {
-                "error": f"invalid json metadata: {str(e)}",
-            }
+            err_obj = {"error": f"invalid json metadata: {str(e)}"}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
             continue
-        # read b64 body until sentinel
+
+        # Read body
         try:
             leftover = b''
             chunks = []
             while True:
                 chunk = sys.stdin.buffer.read(BUF_SIZE)
                 if not chunk:
-                    # EOF reached unexpectedly
                     break
-                # get position of sentinel
                 combined = leftover + chunk
                 idx = combined.find(BODY_DELIMETER)
-                # sentinel is found
                 if idx >= 0:
-                    # read up until position of sentinel
                     chunks.append(combined[:idx])
-                    # consume the rest of the sentinel
                     leftover = combined[idx+len(BODY_DELIMETER):]
                     break
-
                 else:
-                    # keep the remaining bytes for overlap
                     keep = combined[-(len(BODY_DELIMETER)-1):]
                     chunks.append(combined[:-len(keep)])
                     leftover = keep
-            # get b64 string
+
             body_b64 = b''.join(chunks)
-            key = meta.get('objectKey')
-            bodies[key] = {"meta": meta, "body_b64": body_b64}
         except Exception as e:
-            err_obj = {"error": f"error reading body in python {str(e)}"}
+            err_obj = {"error": f"error reading body: {str(e)}"}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
+            continue
 
-    # process all bodies
-    results = process_bodies(bodies)
-
-    # write all results:
-    for key, result in results.items():
-        out_json = result.get('out_json')
-        converted_b64 = result.get('converted_b64')
-        # write metadata line
-        print(out_json, file=sys.stdout, flush=True)
-        # stream converted bytes to buffer, then the sentinel
+        # Process immediately
         try:
-            reader = io.BytesIO(converted_b64)
-            while True:
-                chunk = reader.read(BUF_SIZE)
-                if not chunk:
-                    break
-                sys.stdout.buffer.write(chunk)
+            missing_padding = len(body_b64) % 4
+            if missing_padding:
+                pdf_bytes = base64.b64decode(body_b64 + b'==')
+            else:
+                pdf_bytes = base64.b64decode(body_b64)
+
+            converted = convert_to_txt(pdf_bytes)
+            converted_b64 = base64.b64encode(converted)
+
+            # Prepare output metadata
+            out_meta = dict(meta)
+            out_meta['body'] = ""
+            old_key = out_meta.get('originalKey', meta.get('objectKey'))
+            new_key = get_new_object_key(old_key)
+            out_meta['objectKey'] = new_key
+            out_json = json.dumps(out_meta)
+
+            # Write output immediately
+            print(out_json, file=sys.stdout, flush=True)
+            sys.stdout.buffer.write(converted_b64)
             sys.stdout.buffer.write(BODY_DELIMETER)
             sys.stdout.buffer.flush()
+
         except Exception as e:
-            err_obj = {"error": f"write output error: {str(e)}"}
+            tb = traceback.format_exc()
+            err_obj = {
+                "error": f"processing error: {str(e)}", "trace": tb, "originalKey": meta.get('objectKey')}
             print(json.dumps(err_obj), file=sys.stderr, flush=True)
             continue
 

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+
 # Ensure mc binary exists
 if ! command -v mc &> /dev/null; then
     echo "Downloading MinIO client..."
@@ -33,6 +36,6 @@ mc admin policy attach minio-admin readwrite --user $DB_USER
 mc alias set s3 http://localhost:9000 $DB_USER $DB_PASS
 
 # Create bucket
-mc mb s3/claim-pipeline-docstore
+mc mb s3/claim-pipeline-docstore || echo "Bucket already exists"
 
 echo "MinIO client setup complete."

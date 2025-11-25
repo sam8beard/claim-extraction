@@ -26,10 +26,13 @@ go/pkg/
 .env
 
 # Mounts 
-**/minio-data/*
-**/searxng-data/*
-**/pg-data/*
-**/pgadmin-data/*
+services/minio/minio-data/**
+services/searxng/searxng-data/**
+services/pg/pg-data/**
+services/pgadmin/pgadmin-data/**
+
+# claimex results
+claimex-results/
 
 # mino dev testing 
 /minio/minio_data
@@ -40,3 +43,10 @@ go/pkg/
 # pg dev testing
 /pgdata/
 /pgadmin-data/
+
+# build script for testing
+/build-claimex.sh
+
+~/
+# back up files for testing
+*.bak

@@ -3,7 +3,7 @@ A command line tool for extracting structured information from argument-rich/cla
 
 ## Requirements 
 * `Go` 1.25.4+
-* `Python` 3.14.0+
+* `Python` 3.11 >=
 * `Docker` 28.1.1+
 
 ## How It Works

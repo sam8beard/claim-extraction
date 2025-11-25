@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
-# Paths to your Python directories
-PYTHON_DIRS=("internal/conversion/python" "internal/processing/python")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
+
+# Paths to Python directories
+PYTHON_DIRS=(
+	"$PROJECT_ROOT/internal/conversion/python" 
+	"$PROJECT_ROOT/internal/processing/python"
+)
 
 for dir in "${PYTHON_DIRS[@]}"; do
     echo "Setting up virtual environment in $dir..."

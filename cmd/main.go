@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/sam8beard/claim-extraction/internal/types"
 	"github.com/sam8beard/claim-extraction/internal/workflows/acquisition"
@@ -9,8 +10,9 @@ import (
 	"github.com/sam8beard/claim-extraction/internal/workflows/processing"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
-	"time"
+	"strings"
 )
 
 func main() {
@@ -58,20 +60,20 @@ func main() {
 		ConvertedFiles: conResult.ConvertedFiles,
 	}
 	log.Println("\n\t\t------------ Starting processing... ------------ \n\n")
-	time.Sleep(time.Second * 3)
 	procResult, err := p.Run(ctx, &procInput)
 	if err != nil {
 		log.Fatalf("processing error: %v\n", err)
 	} // if
 
-	// printNLP(procResult)
-
 	resultHeader := "[SUCCESS]"
 	resultMsg := "pipeline executed successfully"
+	var failed bool
 	if len(procResult.FileData) == 0 {
 		resultHeader = "[FAIL]"
 		resultMsg = "failed to process any files"
+		failed = true
 	} // if
+
 	fmt.Printf("\n\n------------------------- %s -------------------------\n", resultHeader)
 	fmt.Printf("\t\t%s\n\n", resultMsg)
 	fmt.Println("-------------------------- [REPORT] ---------------------------")
@@ -83,8 +85,58 @@ func main() {
 
 	fmt.Printf("\t\t      %d files processed\n", len(procResult.FileData))
 
+	if failed {
+		os.Exit(1)
+	}
+
+	printNLP(procResult)
+	// Write results to file
+	resultsFile := strings.ReplaceAll(q, " ", "-")
+	resultDir := "claimex-results"
+	resultPath := fmt.Sprintf("%s/%s.json", resultDir, resultsFile)
+
+	if err := os.MkdirAll(resultDir, 0755); err != nil {
+		log.Fatalf("failed to create results directory: %v", err)
+	}
+
+	output := buildOutput(procResult)
+	data, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		log.Fatalf("failed to encode result JSON: %v", err)
+	}
+
+	if err := os.WriteFile(resultPath, data, 0644); err != nil {
+		log.Fatalf("failed to write results file: %v", err)
+	}
+
+	fmt.Printf("Results written to %s\n", resultPath)
 } // main
 
+func buildOutput(nlpResult *processing.NLPResult) []map[string]any {
+	output := []map[string]any{}
+	fileData := nlpResult.FileData
+	for _, data := range fileData {
+		spans := []map[string]any{}
+		for _, spanData := range data.ClaimSpans {
+			spans = append(spans, map[string]any{
+				"type":       spanData.Type,
+				"text":       spanData.Text,
+				"sent":       spanData.Sent,
+				"confidence": spanData.Confidence,
+			})
+		}
+
+		entry := map[string]any{
+			"fileName":   data.FileName,
+			"objectKey":  data.ObjectKey,
+			"claimScore": data.ClaimScore,
+			"claimSpans": spans,
+		}
+		output = append(output, entry)
+	} // for
+
+	return output
+}
 func printNLP(nr *processing.NLPResult) {
 	fileData := nr.FileData
 	for _, data := range fileData {

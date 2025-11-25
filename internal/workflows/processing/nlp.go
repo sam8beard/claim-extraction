@@ -41,10 +41,17 @@ type ClaimSpan struct {
 
 type NLPResult struct {
 	FileData []FileData `json:"files"`
+	mu       sync.Mutex
+}
+
+func (n *NLPResult) addFileData(fd FileData) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.FileData = append(n.FileData, fd)
 }
 
 func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error) {
-	result := NLPResult{
+	result := &NLPResult{
 		FileData: make([]FileData, 0),
 	}
 
@@ -57,7 +64,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 		order to execute the script so the libraries installed inside
 		the virtual environment can be recognized.
 	*/
-	_, currentFile, _, _ := runtime.Caller(0) // file where this code is
+	_, currentFile, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(currentFile)
 	pythonDir := filepath.Join(currentDir, "python")
 	venvDir := filepath.Join(pythonDir, ".venv")
@@ -72,7 +79,7 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 		fmt.Sprintf("PATH=%s%c%s", filepath.Join(venvDir, "bin"), os.PathListSeparator, os.Getenv("PATH")),
 	)
 
-	// initialize pipes for processing
+	// Initialize pipes for processing
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdin pipe: %w", err)
@@ -85,132 +92,158 @@ func (p *Processing) NLP(ctx context.Context, f *FetchResult) (*NLPResult, error
 	if err != nil {
 		return nil, fmt.Errorf("stderr pipe: %w", err)
 	}
-	log.Println("Executing script...")
+
+	log.Println("Executing NLP script...")
 	if err := cmd.Start(); err != nil {
-		msg := fmt.Errorf("start script error: %v", err)
-		return nil, msg
+		return nil, fmt.Errorf("start script error: %w", err)
 	}
 
-	// add routines to waitgroup
+	// Add routines to waitgroup
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	readStdout := func() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(stdout)
+
+		// Increase buffer size for potentially large JSON lines
+		buf := make([]byte, 4096*4096)
+		scanner.Buffer(buf, 4096*4096)
+
 		for scanner.Scan() {
 			var fd FileData
 			if err := json.Unmarshal(scanner.Bytes(), &fd); err != nil {
-				log.Printf("bad JSON from python: %v", err)
+				log.Printf("bad JSON from python stdout: %v", err)
 				continue
-			} // if
-			result.FileData = append(result.FileData, fd)
-			log.Printf("read file successfully: %s", fd.ObjectKey)
-		} // for
-	} // readStdout
+			}
+			result.addFileData(fd)
+			log.Printf("NLP processed file successfully: %s", fd.ObjectKey)
+		}
+
+		if err := scanner.Err(); err != nil {
+			log.Printf("stdout scanner error: %v", err)
+		}
+	}
 
 	log.Println("Begin reading from stdout...")
-	// start routine to read from stdout
 	go readStdout()
 
+	// Read stderr - log errors
 	readStderr := func() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
+
 		for scanner.Scan() {
+			line := scanner.Text()
 			var fd FileData
-			line := scanner.Bytes()
-			if err := json.Unmarshal(line, &fd); err != nil {
-				log.Printf("bad JSON from stderr: %v", err)
-				continue
-			} // if
-			log.Printf("proccessing error for file: %s: %s", fd.ObjectKey, fd.Error)
-		} // for
-		if err := scanner.Err(); err != nil && err != io.EOF {
+
+			if err := json.Unmarshal([]byte(line), &fd); err == nil && fd.Error != "" {
+				log.Printf("NLP processing error for file %s: %s", fd.ObjectKey, fd.Error)
+			} else {
+				log.Printf("python stderr: %s", line)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
 			log.Printf("stderr scanner error: %v", err)
 		}
-	} // readStderr
+	}
 
-	log.Println("Began reading from stderr...")
+	log.Println("Begin reading from stderr...")
 	go readStderr()
 
-	// defer closing of stdin and ignore error
+	// Use buffered writer for stdin
+	stdinWriter := bufio.NewWriter(stdin)
+
+	// Write files to Python subprocess
 	for file, reader := range files {
-		// get file name from object key for json data
+		// Get file name from object key
 		fileName := file.ObjectKey
 		fileName = strings.Replace(fileName, "processed/", "", 1)
+
 		jsonObject := PythonInput{
 			FileName:  fileName,
 			ObjectKey: file.ObjectKey,
 			Error:     "",
-			//	Content:   content.String(), // we need to stream the body instead
 		}
 
-		// marshal metadata
-		metaJson, err := json.Marshal(jsonObject)
+		// Marshal metadata
+		metaJSON, err := json.Marshal(jsonObject)
 		if err != nil {
-			log.Printf("marshal error: %v", err)
-		} // if
-
-		// write metadata + newline
-		log.Printf("writing metadata for %s...\n", fileName)
-		if _, err := stdin.Write(metaJson); err != nil {
-			msg := fmt.Sprintf("write meta to stdin: %v", err)
-			log.Println(msg)
+			log.Printf("marshal error for %s: %v", fileName, err)
 			continue
-		} // if
-		if _, err := stdin.Write([]byte("\n")); err != nil {
-			msg := fmt.Sprintf("write newline to stdin: %v", err)
-			log.Println(msg)
-			continue
-		} // if
+		}
 
-		// wrap stdin with b64 encoder
+		// Write metadata + newline
+		log.Printf("writing metadata for %s...", fileName)
+		if _, err := stdinWriter.Write(metaJSON); err != nil {
+			log.Printf("write meta to stdin: %v", err)
+			continue
+		}
+		if _, err := stdinWriter.Write([]byte("\n")); err != nil {
+			log.Printf("write newline to stdin: %v", err)
+			continue
+		}
+
+		// Flush metadata before body
+		if err := stdinWriter.Flush(); err != nil {
+			log.Printf("flush metadata: %v", err)
+			continue
+		}
+
+		// Write base64 encoded body directly to stdin
 		encoder := base64.NewEncoder(base64.StdEncoding, stdin)
 
 		log.Printf("writing file %s", fileName)
-		// stream file to python
 		_, err = io.Copy(encoder, reader)
 
-		// close encoder
+		// Close encoder
 		if cerr := encoder.Close(); cerr != nil {
 			log.Printf("encoder close error: %v", cerr)
-		} // if
+			if err := reader.Close(); err != nil {
+				log.Printf("close reader after encoder error: %v", err)
+			}
+			continue
+		}
 
-		// check error on copy
+		// Check error on copy
 		if err != nil {
-			msg := fmt.Sprintf("IO copy to python subprocess: %v", err)
-			log.Println(msg)
+			log.Printf("IO copy to python subprocess: %v", err)
+			if err := reader.Close(); err != nil {
+				log.Printf("close reader after copy error: %v", err)
+			}
 			continue
-		} // if
+		}
 
-		// write file delimeter
+		// Write file delimiter
 		if _, err := stdin.Write([]byte(bodySentinel)); err != nil {
-			msg := fmt.Errorf("write sentinel: %v", err)
-			log.Println(msg)
+			log.Printf("write sentinel error: %v", err)
+			if err := reader.Close(); err != nil {
+				log.Printf("close reader after sentinel error: %v", err)
+			}
 			continue
-		} // if
+		}
 
-		// close reader
+		// Close reader
 		if err := reader.Close(); err != nil {
-			msg := fmt.Sprintf("close reader: %v", err)
-			log.Println(msg)
-			return nil, err
-		} // if
+			log.Printf("close reader: %v", err)
+		}
+	}
 
-	} // for
-
-	log.Println("Begin writing to stdout...")
-
+	log.Println("Closing stdin...")
 	if err := stdin.Close(); err != nil {
-		msg := fmt.Errorf("stdin close error: %v", err)
-		return nil, msg
-	} // if
+		return nil, fmt.Errorf("stdin close error: %w", err)
+	}
 
-	// wait for routines to finish and script to finish executing
+	// Wait for goroutines to finish
+	log.Println("Waiting for goroutines...")
 	wg.Wait()
+
+	// Wait for script to finish
 	if err := cmd.Wait(); err != nil {
-		msg := fmt.Errorf("cmd.Wait error: %v", err)
-		return nil, msg
-	} // if
-	return &result, nil
-} // NLP
+		log.Printf("python exit error: %v", err)
+	}
+
+	log.Printf("NLP processing complete. Processed %d files", len(result.FileData))
+	return result, nil
+}
