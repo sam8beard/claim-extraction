@@ -35,7 +35,7 @@ services/pgadmin/pgadmin-data/**
 claimex-results/
 
 # mino dev testing 
-/minio/minio_data
+/minio/
 
 # python dev testing
 /python/
