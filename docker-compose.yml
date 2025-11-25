@@ -12,7 +12,7 @@ services:
     ports: 
       - "5432:5432"
     volumes: 
-      - ./pgdata:/var/lib/postgresql/data
+      - ./services/pg/pgdata:/var/lib/postgresql/data
   
   # pgadmin
   pgadmin: 
@@ -23,7 +23,7 @@ services:
     ports: 
       - "1234:80"
     volumes: 
-      - ./pgadmin-data:/var/lib/pgadmin
+      - ./services/pgadmin/pgadmin-data:/var/lib/pgadmin
   
   # minio 
   minio: 
@@ -36,7 +36,7 @@ services:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: password
     volumes: 
-      - ./minio_data:/data
+      - ./services/minio/minio-data:/data
     command: server /data --console-address ":9001"
 
   # searxng
@@ -45,5 +45,5 @@ services:
     ports: 
       - "8888:8080"
     volumes:
-      - ./config/:/etc/searxng/
-      - ./data/:/var/cache/searxng/
+      - ./services/searxng/config/:/etc/searxng/
+      - ./services/searxng/searxng-data/:/var/cache/searxng/

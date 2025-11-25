@@ -10,6 +10,6 @@ else
 fi
 
 # Run the create_documents.sql script inside the Postgres container
-docker exec -i postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -f /pg/schema/create_documents.sql
+docker exec -i postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -f /services/pg/schema/create_documents.sql
 
 echo "Postgres documents table created."
