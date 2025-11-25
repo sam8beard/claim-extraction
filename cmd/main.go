@@ -37,17 +37,38 @@ func main() {
 	// cli args for testing
 	q := string(os.Args[1])
 	fc, _ := strconv.Atoi(os.Args[2])
-	fmt.Printf("\n\t\tQuery: %s | File Count: %d\n\n", q, fc)
 
 	acqInput := types.AcquisitionInput{
 		Query:     q,
 		FileCount: fc,
 	}
+
+	resultsFileName := strings.ReplaceAll(q, " ", "-")
+
+	// open logging file for logs
+	logDir := "logs"
+	logPath := fmt.Sprintf("%s/%s.txt", logDir, resultsFileName)
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Fatalf("failed to create logs directory: %v", err)
+	} // if
+
+	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalf("failed to open log file: %v", err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
+	fmt.Printf("\nAttempting to download %d files for topic: %s...\n\n", fc, q)
+
 	log.Println("\n\t\t------------ Starting acquisition... ------------ \n\n")
 	acqResult, err := a.Run(ctx, acqInput)
 	if err != nil {
 		log.Fatalf("acquisition error: %v\n", err)
 	} // if
+
+	fmt.Printf("Converting %d files to text...\n\n", len(acqResult.SuccessFiles))
 	conInput := types.ConversionInput(acqResult)
 
 	log.Println("\n\t\t------------ Starting conversion... ------------ \n\n")
@@ -58,6 +79,8 @@ func main() {
 	procInput := types.ProcessingInput{
 		ConvertedFiles: conResult.ConvertedFiles,
 	}
+
+	fmt.Print("Processing files with spancat...\n\n")
 	log.Println("\n\t\t------------ Starting processing... ------------ \n\n")
 	procResult, err := p.Run(ctx, &procInput)
 	if err != nil {
@@ -73,31 +96,33 @@ func main() {
 		failed = true
 	} // if
 
-	fmt.Printf("\n\n------------------------- %s -------------------------\n", resultHeader)
-	fmt.Printf("\t\t%s\n\n", resultMsg)
-	fmt.Println("-------------------------- [REPORT] ---------------------------")
-	fmt.Printf("\t\t      %d files requested\n", fc)
+	log.Printf("\n\n------------------------- %s -------------------------\n", resultHeader)
+	log.Printf("\t\t%s\n\n", resultMsg)
+	log.Println("-------------------------- [REPORT] ---------------------------")
+	log.Printf("\t\t      %d files requested\n", fc)
 
-	fmt.Printf("\t\t      %d files retrieved\n", len(acqResult.SuccessFiles))
+	log.Printf("\t\t      %d files retrieved\n", len(acqResult.SuccessFiles))
 
-	fmt.Printf("\t\t      %d files converted to text\n", len(conResult.ConvertedFiles))
+	log.Printf("\t\t      %d files converted to text\n", len(conResult.ConvertedFiles))
 
-	fmt.Printf("\t\t      %d files processed\n", len(procResult.FileData))
+	log.Printf("\t\t      %d files processed\n", len(procResult.FileData))
 
 	if failed {
+		fmt.Println("Pipeline failed: please rerun with a different topic or smaller filecount")
 		os.Exit(1)
 	}
 
-	printNLP(procResult)
+	fmt.Print("Pipeline executed successfully\n\n")
+	fmt.Printf("Results written to claimex-results/%s.json", resultsFileName)
+
+	logNLP(procResult, logFile)
 	// Write results to file
-	resultsFile := strings.ReplaceAll(q, " ", "-")
 	resultDir := "claimex-results"
-	resultPath := fmt.Sprintf("%s/%s.json", resultDir, resultsFile)
+	resultPath := fmt.Sprintf("%s/%s.json", resultDir, resultsFileName)
 
 	if err := os.MkdirAll(resultDir, 0755); err != nil {
 		log.Fatalf("failed to create results directory: %v", err)
 	}
-
 	output := buildOutput(procResult)
 	data, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
@@ -136,19 +161,20 @@ func buildOutput(nlpResult *processing.NLPResult) []map[string]any {
 
 	return output
 }
-func printNLP(nr *processing.NLPResult) {
+func logNLP(nr *processing.NLPResult, logFile *os.File) {
+	log.SetOutput(logFile)
 	fileData := nr.FileData
 	for _, data := range fileData {
-		fmt.Printf("\nSpan data for %s ---------------------------\n", data.FileName)
+		log.Printf("\nSpan data for %s ---------------------------\n", data.FileName)
 		for _, spanData := range data.ClaimSpans {
 			fmt.Printf("\nType: %s\n", spanData.Type)
 			fmt.Printf("\nText: %s\n", spanData.Text)
 			fmt.Printf("\nSent: %s\n", spanData.Sent)
 			fmt.Printf("\nConfidence: %f\n", spanData.Confidence)
 		} // for
-		fmt.Println("\nFile data ---------------------------")
-		fmt.Printf("\nObject Key: %s\n", data.ObjectKey)
-		fmt.Printf("\nFile Name: %s\n", data.FileName)
-		fmt.Printf("\nClaim Score: %f\n", data.ClaimScore)
+		log.Println("\nFile data ---------------------------")
+		log.Printf("\nObject Key: %s\n", data.ObjectKey)
+		log.Printf("\nFile Name: %s\n", data.FileName)
+		log.Printf("\nClaim Score: %f\n", data.ClaimScore)
 	} // for
-} // printNLPResult
+} // logNLPResult

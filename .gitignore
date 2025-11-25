@@ -50,6 +50,9 @@ claimex-results/
 # build script for testing
 /build-claimex.sh
 
+# logs for testing
+**/logs/*
+
 ~/
 # back up files for testing
 *.bak
