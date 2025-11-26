@@ -114,7 +114,7 @@ func main() {
 
 	fmt.Print("Pipeline executed successfully\n\n")
 
-	logNLP(procResult, logFile)
+	// logNLP(procResult, logFile)
 	// Write results to file
 	resultDir := "claimex-results"
 	resultPath := fmt.Sprintf("%s/%s.json", resultDir, resultsFileName)
