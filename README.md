@@ -1,6 +1,8 @@
 # claimex
 A command line tool for extracting structured information from argument-rich/claim-rich PDF documents
 
+![](claimex-demo.gif)
+
 ## Requirements 
 * `Go` 1.25.4+
 * `Python` 3.11 >=
