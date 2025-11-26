@@ -46,7 +46,7 @@ A command line tool for extracting structured information from argument-rich/cla
  #### [**spaCy**][spacy] for NLP 
  #### [**SearXNG**][searxng] for search
  #### [**MinIO**][minio] for object storage
-----
+
 
 
 [spacy]:https://github.com/explosion/spaCy
